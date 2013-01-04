@@ -18,27 +18,28 @@
 import argparse
 
 def parse_args():
-    desc = "PyParticles is a particle simulation tool box that support the most diffused numerical integration " 
+    desc = "PyParticles is a particle simulation tool box that support the most diffused numerical integration "
     desc = desc + " and forces models "
 
     parser = argparse.ArgumentParser( description=desc )
-    
+
     parser.add_argument("-m", "--config_model",
         action="store_true",
         dest="config_model",
         help="Write out the model of a config file and exit")
-    
+
     parser.add_argument( "-d" , "--demo",
         action="store",
-        choices=[ "springs" , 
-                 "solar_system" , 
-                 "gas_lj" , 
-                 "bubble" , 
-                 "cat_spri" , 
-                 "el_static" , 
+        choices=[ "springs" ,
+                 "solar_system" ,
+                 "gas_lj" ,
+                 "bubble" ,
+                 "cat_spri" ,
+                 "el_static" ,
                  "elmag_field" ,
                  "fountain" ,
-                 "galaxy"] ,
+                 "galaxy" ,
+                 "smoothed_particle_hydrodynamics"] ,
         dest="demo",
         default=None ,
         help="Execute the specified buildin demo"
@@ -56,17 +57,17 @@ def parse_args():
         nargs='?',
         default=None
         )
-    
+
     parser.add_argument( "-v" , "--version",
         action="store_true",
         dest="version",
         help="print the current version and exit"
         )
-    
+
     parser.add_argument( "-a" , "--about",
         action="store_true",
         dest="about",
         help="print the about message and exit"
-        )    
-    
+        )
+
     return parser.parse_args()
