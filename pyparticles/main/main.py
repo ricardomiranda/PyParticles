@@ -173,7 +173,7 @@ def main():
         print("")
         print("Start the simulation example:")
         print(" smoothed particle hydrodynamics")
-        sph.glass_water()
+        sph.cube_water()
         return
 
     if options.path_name == None or options.demo == "solar_system":

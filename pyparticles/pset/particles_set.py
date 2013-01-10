@@ -64,12 +64,12 @@ class ParticlesSet(object):
             self.__V = None
 
         if mass :
-            self.__mass = np.zeros((size,1) , dtype=dtype )
+            self.__mass = self.INI_FLOAT * np.zeros((size,1) , dtype=dtype )
         else:
             self.__mass = None
 
         if density :
-            self.__density = self.INI_FLOAT * np.ones((size,dim) , dtype=dtype )
+            self.__density = self.INI_FLOAT * np.ones((size,1) , dtype=dtype )
         else:
             self.__density = None
 
@@ -91,7 +91,7 @@ class ParticlesSet(object):
 
         self.__unit = 1.0
         self.__mass_unit = 1.0
-        self.__density_unit = 1.0 # RCM 20121231
+        self.__density_unit = 1.0 
 
         self.__log = dict()
         self.__default_logger = None
@@ -104,7 +104,7 @@ class ParticlesSet(object):
             self.__property_dict['M'] = self.__mass
 
         if self.__density  != None :
-            self.__property_dict['D'] = self.__density # RCM 20121231
+            self.__property_dict['D'] = self.__density 
 
         if self.__label != None :
             self.__property_dict['label'] = self.__label
@@ -132,7 +132,7 @@ class ParticlesSet(object):
         del self.__log_V
         del self.__property_dict
 
-        self.__init__( size , dim , boundary , label , mass , velocity , charge , log_X , log_V , log_max_size )
+        self.__init__( size , dim , boundary , label , mass , velocity , charge , log_X , log_V, density , log_max_size )
 
 
     def resize( self , new_size ):
@@ -331,6 +331,8 @@ class ParticlesSet(object):
                     self.__V = self.__property_dict[kpr]
                 elif kpr == "M" :
                     self.__mass = self.__property_dict[kpr]
+                elif kpr == "D" :
+                    self.__density = self.__property_dict[kpr]
                 elif kpr == "Q" :
                     self.__Q = self.__property_dict[kpr]
 

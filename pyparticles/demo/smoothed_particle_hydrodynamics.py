@@ -32,10 +32,12 @@ import pyparticles.ode.midpoint_solver as       mds
 import pyparticles.forces.const_force as        cf
 import pyparticles.forces.drag as               dr
 import pyparticles.forces.multiple_force as     mf
+import pyparticles.forces.navier_stokes  as     ns
 
 import pyparticles.animation.animated_ogl as    aogl
 
-import pyparticles.pset.default_boundary as     db
+import pyparticles.pset.default_boundary as db
+import pyparticles.pset.rebound_boundary as rb
 
 from pyparticles.utils.pypart_global import test_pyopencl
 
@@ -43,55 +45,32 @@ def default_pos( pset , indx ):
 
     t = default_pos.sim_time.time
 
-#    pset.X[indx,:] = 0.01 * np.random.rand( len(indx) , pset.dim ).astype( pset.dtype )
 
-#    fs = 1.0 / ( 1.0 + np.exp( -( t*4.0 - 2.0 ) ) )
-
-#    alpha = 2.0 * np.pi * np.random.rand( len(indx) ).astype( pset.dtype )
-
-#    vel_x = 2.0 * fs * np.cos( alpha )
-#    vel_y = 2.0 * fs * np.sin( alpha )
-
-#    pset.V[indx,0] = vel_x
-#    pset.V[indx,1] = vel_y
-#    pset.V[indx,2] = 10.0 * fs + 1.0 * fs * ( np.random.rand( len(indx)) )
-#    code.interact(local=locals()) # RCM lixo
-#    pdb.pm() # RCM lixo
-
-
-def initial_pos ( pset , pcnt ):
+def initial_pos      (pset , pcnt, dx, L):
     """
-    In this example the particles are evenly put inside a cylinder radius = R, height = H, senter=(0,0,H/2)
+    In this example the particles are evenly put inside a cube size L, center=(L/2,L/2,L/2)
     """
-    # http://stackoverflow.com/questions/9203382/generating-random-point-in-a-cylinder
-    # Generate a random point inside the rectangular solid circumscribing the cylinder;
-    #   if it's inside the cylinder (probability pi/4), keep it, otherwise discard it and try again.
 
-    # It is a swimming pool
-    R = 2
-    H = 2
-
-    for i in range(0 , pcnt-1):
-        inside = False
-        while inside == False:
-            x = np.random.uniform(-1.0, 1.0)
-            y = np.random.uniform(-1.0, 1.0)
-
-            r = np.sqrt(np.square(x) + np.square(y))
-            if r <= 1.0: # If particle is inside the cylinder
-                inside = True
-                x      = x * R
-                y      = y * R
-                z      = H * np.random.uniform()
-
-                pset.X[i,0] = x
-                pset.X[i,1] = y
-                pset.X[i,2] = z
+    i = 0
+    x = dx
+    while i < pcnt:
+        while x < 1.0:
+            y = dx
+            while y < 1.0:
+                z = dx
+                while z < 1.0:
+                    pset.X[i,0] = x * L
+                    pset.X[i,1] = y * L
+                    pset.X[i,2] = z * L
+                    i           = i + 1
+                    z = z + dx
+                y = y + dx
+            x = x + dx
 
 
-def initial_vel ( pset , pcnt ):
+def initial_vel      (pset, pcnt        ):
     """
-    In this example the particles are still in the begiening
+    In this example the particles are still in the beginning
     """
 
     for i in range(0 , pcnt-1):
@@ -100,14 +79,24 @@ def initial_vel ( pset , pcnt ):
         pset.V[i,2] = 0.0
 
 
-def glass_water():
+def initial_pressure (pset, pcnt,      L):
+    for i in range(0, pcnt-1):
+        pass
+
+
+def cube_water():
     """
-    Smoothed particle hydrodynamics glass exemple
+    Smoothed particle hydrodynamics cube of water exemple
     """
 
-    steps = 10000000    # Number of steps
-    dt = 0.005          # dt should be defined according to a numerical stability parameter
-    pcnt = 100000       # Number of particles
+    steps = 10000000           # Number of steps
+    dt    = 0.005              # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
+    dx    = 0.025              # spacing between particles L/Nx
+    aux   = ((1.0/dx)-1)
+    pcnt  = aux*aux*aux        # Number of particles
+    L     =  1.0               # Water cube size
+    g     = -9.8               # Gravity acceleration
+
 
     fl = True
     if test_pyopencl() :
@@ -125,14 +114,17 @@ def glass_water():
 
 
 
-    pset = ps.ParticlesSet( size = pcnt , mass = True , density = True , dtype=np.float32 )
-    initial_pos( pset , pcnt )
-    initial_vel( pset , pcnt )
+    pset = ps.ParticlesSet( size = pcnt , mass = True , density = True , dtype=np.float64 )
+    initial_pos               (pset, np.int(pcnt), dx, L)
+    initial_vel               (pset, np.int(pcnt)       )
+    initial_pressure          (pset, np.int(pcnt),     L)
 
-    pset.D[:] = 1000.0 # RCM 20121231, fresh water density
-    pset.M[:] = 0.1
+    nstk = ns.HPSNavierStokes()
+    nstk.calc_density_water_rest(pset,                   L)
 
-    grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , -9.8 ) ) # RCM 20121231
+    pset.M[:] = 1.0 / pcnt
+
+    grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 
     occx = None
     if test_pyopencl() :
@@ -161,7 +153,8 @@ def glass_water():
 
     default_pos.sim_time = solver.get_sim_time()
 
-    bd = ( -100.0 , 100.0 , -100.0 , 100.0 , 0.0 , 100.0 )
+#    bd = ( -100.0 , 100.0 , -100.0 , 100.0 , 0.0 , 100.0 )
+    bd = ( -1.0 , 1.0 , -1.0 , 1.0 , 0.0 , 2.0 ) # RCM
     bound = db.DefaultBoundary( bd , dim=3 , defualt_pos=default_pos )
 
     pset.set_boundary( bound )
