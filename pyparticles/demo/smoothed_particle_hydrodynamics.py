@@ -46,31 +46,100 @@ def default_pos( pset , indx ):
     t = default_pos.sim_time.time
 
 
-def initial_pos      (pset , pcnt, dx, L):
+def initial_pos      (pset, pcnt, pcntVol, pcntWall, dx, L):
     """
     In this example the particles are evenly put inside a cube size L, center=(L/2,L/2,L/2)
     """
 
+    # Volume
     i = 0
     x = dx
-    while i < pcnt:
-        while x < 1.0:
-            y = dx
-            while y < 1.0:
-                z = dx
-                while z < 1.0:
-                    pset.X[i,0] = x * L
-                    pset.X[i,1] = y * L
-                    pset.X[i,2] = z * L
-                    i           = i + 1
-                    z = z + dx
-                y = y + dx
-            x = x + dx
+    while x < 1.0:
+        y = dx
+        while y < 1.0:
+            z = dx
+            while z < 1.0:
+                pset.X[i,0] = x * L
+                pset.X[i,1] = y * L
+                pset.X[i,2] = z * L
+                i           = i + 1
+                z = z + dx
+            y = y + dx
+        x = x + dx
 
+    # Bottom
+    aux = i
+    x = 0.0
+    while x <= 1.0:
+        y = 0.0
+        while y <= 1.0:
+            z = 0.0
+            pset.X[i,0] = x * L
+            pset.X[i,1] = y * L
+            pset.X[i,2] = z
+            i           = i + 1
+            y = y + dx
+        x = x + dx
+
+    # Wall 1
+    aux = i
+    x = 0.0
+    while x <= 1.0:
+        y = 0.0
+        z = dx
+        while z <= 1.0:
+            pset.X[i,0] = x * L
+            pset.X[i,1] = y
+            pset.X[i,2] = z * L
+            i           = i + 1
+            z = z + dx
+        x = x + dx
+
+    # Wall 2
+    aux = i
+    x = 0.0
+    while x <= 1.0:
+        y = 1.0
+        z = dx
+        while z <= 1.0:
+            pset.X[i,0] = x * L
+            pset.X[i,1] = y
+            pset.X[i,2] = z * L
+            i           = i + 1
+            z = z + dx
+        x = x + dx
+
+    # Wall 3
+    aux = i
+    x = 0.0
+    y = 0.0
+    while y <= 1.0:
+        z = dx
+        while z <= 1.0:
+            pset.X[i,0] = x
+            pset.X[i,1] = y * L
+            pset.X[i,2] = z * L
+            i           = i + 1
+            z = z + dx
+        y = y + dx
+
+    # Wall 4
+    aux = i
+    x = 1.0
+    y = 0.0
+    while y <= 1.0:
+        z = dx
+        while z <= 1.0:
+            pset.X[i,0] = x
+            pset.X[i,1] = y * L
+            pset.X[i,2] = z * L
+            i           = i + 1
+            z = z + dx
+        y = y + dx
 
 def initial_vel      (pset, pcnt        ):
     """
-    In this example the particles are still in the beginning
+    In this example the particles are at rest in the beginning
     """
 
     for i in range(0 , pcnt-1):
@@ -89,13 +158,16 @@ def cube_water():
     Smoothed particle hydrodynamics cube of water exemple
     """
 
-    steps = 10000000           # Number of steps
-    dt    = 0.005              # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
-    dx    = 0.025              # spacing between particles L/Nx
-    aux   = ((1.0/dx)-1)
-    pcnt  = aux*aux*aux        # Number of particles
-    L     =  1.0               # Water cube size
-    g     = -9.8               # Gravity acceleration
+    steps   = 10000000              # Number of steps
+    dt      = 0.005                 # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
+    dx      = 0.025                 # spacing between particles L/Nx
+    aux     = ((1.0/dx)-1.0)
+    pcntVol = aux*aux*aux           # Number of particles in
+    aux     = aux+2.0
+    pcntWall= aux*aux               # Number of particles in wallls
+    pcnt    = pcntVol+pcntWall*5
+    L       =  1.0                  # Water cube size
+    g       = -9.8                  # Gravity acceleration
 
 
     fl = True
@@ -113,16 +185,15 @@ def cube_water():
                 fl = False
 
 
-
-    pset = ps.ParticlesSet( size = pcnt , mass = True , density = True , dtype=np.float64 )
-    initial_pos               (pset, np.int(pcnt), dx, L)
-    initial_vel               (pset, np.int(pcnt)       )
-    initial_pressure          (pset, np.int(pcnt),     L)
+    pset = ps.ParticlesSet( size = np.int(pcnt) , mass = True , density = True , dtype=np.float64 )
+    initial_pos               (pset, np.int(pcnt), np.int(pcntVol), np.int(pcntWall), dx, L)
+    initial_vel               (pset, np.int(pcnt)                                          )
+    initial_pressure          (pset, np.int(pcnt),                                        L)
 
     nstk = ns.HPSNavierStokes()
-    nstk.calc_density_water_rest(pset,                   L)
+    nstk.calc_density_water_rest(pset,                                                    L)
 
-    pset.M[:] = 1.0 / pcnt
+    pset.M[:] = 1.0 / pcntVol
 
     grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 

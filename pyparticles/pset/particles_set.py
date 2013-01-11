@@ -45,7 +45,7 @@ class ParticlesSet(object):
         The properties: position X and velocity V are mandatory.
     """
 
-    INI_FLOAT = -9999.9 # To catch calculation error it is usefull because sometimes zero is a value that makes sence
+    __INI_FLOAT = -9999.9 # To catch calculation error it is usefull because sometimes zero is a value that makes sence
 
     def __init__( self , size=1 , dim=3 , boundary=None ,
                  label=False , mass=True , velocity=True , charge=False ,
@@ -56,20 +56,20 @@ class ParticlesSet(object):
 
         self.__dtype = dtype
 
-        self.__X  = self.INI_FLOAT * np.ones((size,dim) , dtype=dtype )
+        self.__X  = self.__INI_FLOAT * np.ones((size,dim) , dtype=dtype )
 
         if velocity:
-            self.__V = self.INI_FLOAT * np.ones((size,dim) , dtype=dtype )
+            self.__V = self.__INI_FLOAT * np.ones((size,dim) , dtype=dtype )
         else:
             self.__V = None
 
         if mass :
-            self.__mass = self.INI_FLOAT * np.zeros((size,1) , dtype=dtype )
+            self.__mass = self.__INI_FLOAT * np.zeros((size,1) , dtype=dtype )
         else:
             self.__mass = None
 
         if density :
-            self.__density = self.INI_FLOAT * np.ones((size,1) , dtype=dtype )
+            self.__density = self.__INI_FLOAT * np.ones((size,1) , dtype=dtype )
         else:
             self.__density = None
 
