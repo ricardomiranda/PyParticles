@@ -276,14 +276,14 @@ class HPSSmothingKernels(object):
 
         ij_smothing_kernels[self.__sk_col_i          ] = particle_i
         ij_smothing_kernels[self.__sk_col_j          ] = particle_j
-        ij_smothing_kernels[self.__sk_col_w_p6       ] = self.__w_poly6              (r)
-        ij_smothing_kernels[self.__sk_col_w_p6_grd   ] = self.__w_poly6_gradiend     (r)
-        ij_smothing_kernels[self.__sk_col_w_p6_lpl   ] = self.__w_poly6_laplace      (r)
-        ij_smothing_kernels[self.__sk_col_w_sp       ] = self.__w_spiky              (r)
-        ij_smothing_kernels[self.__sk_col_w_sp_grd   ] = self.__w_spiky_gradiend     (r)
-        ij_smothing_kernels[self.__sk_col_w_vc       ] = self.__w_viscosity          (r)
-        ij_smothing_kernels[self.__sk_col_w_vc_grd   ] = self.__w_viscosity_gradiend (r)
-        ij_smothing_kernels[self.__sk_col_w_vc_lpl   ] = self.__w_viscosity_laplace  (r)
+        ij_smothing_kernels[self.__sk_col_w_p6       ] = self.__w_poly6              (r=r)
+        ij_smothing_kernels[self.__sk_col_w_p6_grd   ] = self.__w_poly6_gradiend     (r=r)
+        ij_smothing_kernels[self.__sk_col_w_p6_lpl   ] = self.__w_poly6_laplace      (r=r)
+        ij_smothing_kernels[self.__sk_col_w_sp       ] = self.__w_spiky              (r=r)
+        ij_smothing_kernels[self.__sk_col_w_sp_grd   ] = self.__w_spiky_gradiend     (r=r)
+        ij_smothing_kernels[self.__sk_col_w_vc       ] = self.__w_viscosity          (r=r)
+        ij_smothing_kernels[self.__sk_col_w_vc_grd   ] = self.__w_viscosity_gradiend (r=r)
+        ij_smothing_kernels[self.__sk_col_w_vc_lpl   ] = self.__w_viscosity_laplace  (r=r)
 
         '''
         A NumPy array is a very different data structure from a list and is designed to be used in different ways. Your
@@ -404,7 +404,7 @@ class HPSNavierStokes(object):
         """
         gamma = self.__gamma
         rd    = self.__reference_density
-        B     = self.__calc_B(H)
+        B     = self.__calc_B(h_SWL=H)
         return B * (np.power((p_set.D[:]/rd), gamma) - 1)
 
 
@@ -423,7 +423,7 @@ class HPSNavierStokes(object):
         rd    = self.__reference_density
         g     = self.__gravity_acceleration
         gamma = self.__gamma
-        B     = self.__calc_B(H)
+        B     = self.__calc_B(h_SWL=H)
         p_set.D[:] = rd * np.power((1 + (rd*np.abs(g)*(H-p_set.X[:,2,np.newaxis]))/B), 1./gamma)
 
 

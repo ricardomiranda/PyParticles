@@ -1,5 +1,5 @@
 # PyParticles : Particles simulation in python
-# Copyright (C) 2012  Simone Riva
+# Copyright (C) 2012  Ricardo Miranda
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,125 +17,161 @@
 import code # RCM lixo
 import pdb # RCM lixo
 
-import numpy as                                 np
+import numpy                                            as np
 
-import pyparticles.pset.particles_set as        ps
+import pyparticles.pset.particles_set                   as ps
 
-import pyparticles.pset.opencl_context as       occ
+import pyparticles.pset.opencl_context                  as occ
 
-import pyparticles.ode.euler_solver as          els
-import pyparticles.ode.leapfrog_solver as       lps
-import pyparticles.ode.runge_kutta_solver as    rks
-import pyparticles.ode.stormer_verlet_solver as svs
-import pyparticles.ode.midpoint_solver as       mds
+import pyparticles.ode.euler_solver                     as els
+import pyparticles.ode.leapfrog_solver                  as lps
+import pyparticles.ode.runge_kutta_solver               as rks
+import pyparticles.ode.stormer_verlet_solver            as svs
+import pyparticles.ode.midpoint_solver                  as mds
 
-import pyparticles.forces.const_force as        cf
-import pyparticles.forces.drag as               dr
-import pyparticles.forces.multiple_force as     mf
-import pyparticles.forces.navier_stokes  as     ns
+import pyparticles.forces.const_force                   as cf
+import pyparticles.forces.drag                          as dr
+import pyparticles.forces.multiple_force                as mf
+import pyparticles.forces.navier_stokes                 as ns
 
-import pyparticles.animation.animated_ogl as    aogl
+import pyparticles.animation.animated_ogl               as aogl
 
-import pyparticles.pset.default_boundary as db
-import pyparticles.pset.rebound_boundary as rb
+import pyparticles.pset.default_boundary                as db
+import pyparticles.pset.rebound_boundary                as rb
+import pyparticles.pset.constrained_x                   as csx
+import pyparticles.pset.constrained_force_interactions  as cfi
 
 from pyparticles.utils.pypart_global import test_pyopencl
+
+__INI_FLOAT = -9999.9 # To catch calculation error it is usefull because sometimes zero is a value that makes sence
+
 
 def default_pos( pset , indx ):
 
     t = default_pos.sim_time.time
 
 
-def initial_pos      (pset, pcnt, pcntVol, pcntWall, dx, L):
+def initial_pos      (pset, pcnt, pcntVol, pcntWall, ar, L):
     """
     In this example the particles are evenly put inside a cube size L, center=(L/2,L/2,L/2)
     """
 
     # Volume
-    i = 0
-    x = dx
-    while x < 1.0:
-        y = dx
-        while y < 1.0:
-            z = dx
-            while z < 1.0:
-                pset.X[i,0] = x * L
-                pset.X[i,1] = y * L
-                pset.X[i,2] = z * L
-                i           = i + 1
-                z = z + dx
-            y = y + dx
-        x = x + dx
+    n = 0
+    for i in range(1, len(ar)-1):
+        for j in range(1, len(ar)-1):
+            for k in range(1, len(ar)-1):
+                pset.X[n,0] = ar[i] * L
+                pset.X[n,1] = ar[j] * L
+                pset.X[n,2] = ar[k] * L
+                n           = n + 1
+
+
+def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
+    """
+    Virtual particles are put on the walls
+    """
+
+    costrs  = csx.ConstrainedX(pset)    # This is a list of virtual particles fixed in space.
+    ci      = None                      # Array with indices of the boundary virtual particles
+    cx      = None                      # Array with fixed positions of the boundary virtual particles
 
     # Bottom
-    aux = i
-    x = 0.0
-    while x <= 1.0:
-        y = 0.0
-        while y <= 1.0:
-            z = 0.0
-            pset.X[i,0] = x * L
-            pset.X[i,1] = y * L
-            pset.X[i,2] = z
-            i           = i + 1
-            y = y + dx
-        x = x + dx
+    n = pcntVol
+    for i in range(0, len(ar)):
+        for j in range(0, len(ar)):
+            k           = 0
+            cx_part     = __INI_FLOAT * np.ones((3), dtype=np.float64)
+
+            pset.X[n,0] = ar[i] * L
+            pset.X[n,1] = ar[j] * L
+            pset.X[n,2] = ar[k] * L
+
+            if ci == None:
+                cx_part[0]  = pset.X[n,0]
+                cx_part[1]  = pset.X[n,1]
+                cx_part[2]  = pset.X[n,2]
+                ci          =       [n]
+                cx          = cx_part
+            else:
+                cx_part[0]  = pset.X[n,0]
+                cx_part[1]  = pset.X[n,1]
+                cx_part[2]  = pset.X[n,2]
+                ci          = np.append(ci, [n],    axis=0)
+                cx          = np.append(cx, cx_part, axis=1)
+
+            n          = n + 1
 
     # Wall 1
-    aux = i
-    x = 0.0
-    while x <= 1.0:
-        y = 0.0
-        z = dx
-        while z <= 1.0:
-            pset.X[i,0] = x * L
-            pset.X[i,1] = y
-            pset.X[i,2] = z * L
-            i           = i + 1
-            z = z + dx
-        x = x + dx
+    for j in range(0, len(ar)):
+        for k in range(0, len(ar)):
+            i           = 0
+            pset.X[n,0] = ar[i] * L
+            pset.X[n,1] = ar[j] * L
+            pset.X[n,2] = ar[k] * L
+
+            cx_part[0]  = pset.X[n,0]
+            cx_part[1]  = pset.X[n,1]
+            cx_part[2]  = pset.X[n,2]
+            ci          = np.append(ci, [n]    , axis=0)
+            cx          = np.append(cx, cx_part, axis=1)
+
+            n           = n + 1
 
     # Wall 2
-    aux = i
-    x = 0.0
-    while x <= 1.0:
-        y = 1.0
-        z = dx
-        while z <= 1.0:
-            pset.X[i,0] = x * L
-            pset.X[i,1] = y
-            pset.X[i,2] = z * L
-            i           = i + 1
-            z = z + dx
-        x = x + dx
+    for j in range(0, len(ar)):
+        for k in range(0, len(ar)):
+            i           = len(ar)-1
+            pset.X[n,0] = ar[i] * L
+            pset.X[n,1] = ar[j] * L
+            pset.X[n,2] = ar[k] * L
+
+            cx_part[0]  = pset.X[n,0]
+            cx_part[1]  = pset.X[n,1]
+            cx_part[2]  = pset.X[n,2]
+            ci          = np.append(ci, [n]    , axis=0)
+            cx          = np.append(cx, cx_part, axis=1)
+
+            n           = n + 1
 
     # Wall 3
-    aux = i
-    x = 0.0
-    y = 0.0
-    while y <= 1.0:
-        z = dx
-        while z <= 1.0:
-            pset.X[i,0] = x
-            pset.X[i,1] = y * L
-            pset.X[i,2] = z * L
-            i           = i + 1
-            z = z + dx
-        y = y + dx
+    for i in range(0, len(ar)):
+        for k in range(0, len(ar)):
+            j           = 0
+            pset.X[n,0] = ar[i] * L
+            pset.X[n,1] = ar[j] * L
+            pset.X[n,2] = ar[k] * L
+
+            cx_part[0]  = pset.X[n,0]
+            cx_part[1]  = pset.X[n,1]
+            cx_part[2]  = pset.X[n,2]
+            ci          = np.append(ci, [n]    , axis=0)
+            cx          = np.append(cx, cx_part, axis=1)
+
+            n           = n + 1
 
     # Wall 4
-    aux = i
-    x = 1.0
-    y = 0.0
-    while y <= 1.0:
-        z = dx
-        while z <= 1.0:
-            pset.X[i,0] = x
-            pset.X[i,1] = y * L
-            pset.X[i,2] = z * L
-            i           = i + 1
-            z = z + dx
-        y = y + dx
+    for i in range(0, len(ar)):
+        for k in range(0, len(ar)):
+            j           = len(ar)-1
+            pset.X[n,0] = ar[i] * L
+            pset.X[n,1] = ar[j] * L
+            pset.X[n,2] = ar[k] * L
+
+            cx_part[0]  = pset.X[n,0]
+            cx_part[1]  = pset.X[n,1]
+            cx_part[2]  = pset.X[n,2]
+            ci          = np.append(ci, [n]    , axis=0)
+            cx          = np.append(cx, cx_part, axis=1)
+
+            n           = n + 1
+
+    cx      = np.reshape(cx, (-1, 3))
+    costrs.add_x_constraint(ci, cx)
+
+    return costrs
+
+
 
 def initial_vel      (pset, pcnt        ):
     """
@@ -160,6 +196,7 @@ def cube_water():
 
     steps   = 10000000              # Number of steps
     dt      = 0.005                 # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
+#    dx      = 0.1                 # spacing between particles L/Nx
     dx      = 0.025                 # spacing between particles L/Nx
     aux     = ((1.0/dx)-1.0)
     pcntVol = aux*aux*aux           # Number of particles in
@@ -168,6 +205,9 @@ def cube_water():
     pcnt    = pcntVol+pcntWall*5
     L       =  1.0                  # Water cube size
     g       = -9.8                  # Gravity acceleration
+
+
+    ar = np.arange(0, 1+dx, dx)
 
 
     fl = True
@@ -185,15 +225,17 @@ def cube_water():
                 fl = False
 
 
-    pset = ps.ParticlesSet( size = np.int(pcnt) , mass = True , density = True , dtype=np.float64 )
-    initial_pos               (pset, np.int(pcnt), np.int(pcntVol), np.int(pcntWall), dx, L)
-    initial_vel               (pset, np.int(pcnt)                                          )
-    initial_pressure          (pset, np.int(pcnt),                                        L)
+    pset    = ps.ParticlesSet   (size = np.int(pcnt), mass = True ,density = True ,dtype=np.float64 )
+
+    initial_pos                 (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
+    costrs  = boundaryParticles (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
+    initial_vel                 (pset=pset, pcnt=np.int(pcnt)                                                                )
+    initial_pressure            (pset=pset, pcnt=np.int(pcnt),                                                            L=L)
 
     nstk = ns.HPSNavierStokes()
-    nstk.calc_density_water_rest(pset,                                                    L)
+    nstk.calc_density_water_rest(p_set=pset, H=L)
 
-    pset.M[:] = 1.0 / pcntVol
+    pset.M[:] = 1000.0*L*L*L / pcntVol
 
     grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 
@@ -214,9 +256,9 @@ def cube_water():
 
     #solver = mds.MidpointSolver( multi , pset , dt )
     if test_pyopencl() :
-        solver = els.EulerSolverOCL( multi , pset , dt , ocl_context=occx )
+        solver = els.EulerSolverOCL( multi , pset , dt , ocl_context=occx  )
     else :
-        solver = els.EulerSolver( multi , pset , dt )
+        solver = els.EulerSolverConstrained( multi , pset , dt , costrs )
 
 #    code.interact(local=locals()) # RCM lixo
 #    pdb.pm() # RCM lixo
