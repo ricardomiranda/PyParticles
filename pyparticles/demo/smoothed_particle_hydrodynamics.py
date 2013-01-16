@@ -45,7 +45,7 @@ import pyparticles.geometry.mesh                        as msh
 
 from pyparticles.utils.pypart_global import test_pyopencl
 
-__INI_FLOAT = -9999.9 # To catch calculation error it is usefull because sometimes zero is a value that makes sence
+__INI_FLOAT = -9999.9 # To catch calculation error it is useful because sometimes zero is a value that makes sense
 
 
 def default_pos( pset , indx ):
@@ -208,6 +208,7 @@ def cube_water():
     L       =  1.0                  # Water cube size
     g       = -9.8                  # Gravity acceleration
 
+    h_local = .222
 
     ar = np.arange(0, 1+dx, dx)
 
@@ -242,12 +243,14 @@ def cube_water():
     pset.M[:] = 1000.0*L*L*L / pcntVol
 
     sk      = ns.HPSSmothingKernels()
+    sk.h    = h_local                                   # RCM, for tests
     h       = sk.h
     point1  = np.array([0.0, 0.0, 0.0], dtype=np.float64)
     point2  = np.array([L,   L,   L  ], dtype=np.float64)
     mesh    = msh.Mesh                  (pset=pset, h = h, point1 = point1, point2 = point2)
     mesh.calc_mesh                      ()
     mesh.calc_particles_mesh_locations  (pset=pset, dtype=np.float64)
+    mesh.calc_particles_that_interact   (pset=pset)
 
     grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 

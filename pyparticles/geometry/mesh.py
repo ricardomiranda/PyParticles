@@ -18,6 +18,8 @@ import numpy                                            as np
 import pyparticles.pset.particles_set                   as ps
 import pyparticles.pset.constrained_force_interactions  as cfi
 
+from pyparticles.geometry.dist import distance
+
 
 class Mesh(object):
 
@@ -32,15 +34,15 @@ class Mesh(object):
         4) class constrained_force_interactions stores relations between particles that influence each other.
     """
 
-    __INI_FLOAT = -9999.9           # To catch calculation error it is usefull because sometimes zero is a value that makes sence
-    __INI_INT   = -9999             # To catch calculation error it is usefull because sometimes zero is a value that makes sence
+    __INI_FLOAT = -9999.9           # To catch calculation error it is useful because sometimes zero is a value that makes sense
+    __INI_INT   = -9999             # To catch calculation error it is useful because sometimes zero is a value that makes scene
 
     __ar_axis0      = None
     __ar_axis1      = None
     __ar_axis2      = None
-    __h             = None          # h is the mesh spacing
-    __point1        = None          # Point1 is the the first corner of the volume that contais all the particles
-    __point2        = None          # Point2 is the the second corner of the volume that contais all the particles
+    __h             = None          # h is the mesh spacing (equal to smoothing length)
+    __point1        = None          # Point1 is the the first corner of the volume that contains all the particles
+    __point2        = None          # Point2 is the the second corner of the volume that contains all the particles
     __cell          = "cell"        # Property added to particles_set
 
     # Init ---------------------------------------------------------------------
@@ -54,7 +56,7 @@ class Mesh(object):
         self.__dtype    = dtype
 
         if h        != None:
-            self.__h        = h
+            self.__h        = float(h)
         if point1   != None:
             self.__point1   = np.array(point1, self.__dtype)
         if point2   != None:
@@ -71,7 +73,7 @@ class Mesh(object):
         return self.__h
     def seth(self, h):
         self.__h = h
-    h = property(geth, seth , doc="Manipulates smothing length" )
+    h = property(geth, seth , doc="Manipulates smoothing length" )
 
     #-----------------------------------
 
@@ -79,7 +81,7 @@ class Mesh(object):
         return self.__point1
     def setpoint1(self, point1):
         self.__point1 = point1
-    point1 = property(getpoint1, setpoint1 , doc="Point1 is the the first corner of the volume that contais all the particles" )
+    point1 = property(getpoint1, setpoint1 , doc="Point1 is the the first corner of the volume that contains all the particles" )
 
     #-----------------------------------
 
@@ -87,12 +89,13 @@ class Mesh(object):
         return self.__point2
     def setpoint2(self, point2):
         self.__point2 = point2
-    point2 = property(getpoint2, setpoint2 , doc="Point2 is the the second corner of the volume that contais all the particles" )
+    point2 = property(getpoint2, setpoint2 , doc="Point2 is the the second corner of the volume that contains all the particles" )
 
     '''
     Methods --------------------------------------------------------------------
         calc_mesh
         calc_particle_mesh_location
+        calc_particles_that_interact
     '''
 
     def calc_mesh(self, h         = None,
@@ -127,7 +130,7 @@ class Mesh(object):
 
     def calc_particles_mesh_locations(self, pset, dtype = np.float64):
         '''
-        Finds the mesh cell where the each particle is located
+        Finds the mesh's cell where the each particle is located
         '''
 
         ar_axis0        = self.__ar_axis0
@@ -171,6 +174,111 @@ class Mesh(object):
             cell[2] = cell2
 
             particle_cell.append(cell)
-        particle_cell=np.asarray(particle_cell)
+
+        particle_cell=np.asarray(particle_cell, np.int64)
 
         pset.get_by_name(self.__cell)[:] = particle_cell[:]
+
+    #-----------------------------------
+
+    def calc_particles_that_interact(self, pset):
+        '''
+        Covers the entire mesh looking for particles. Algorithm:
+            1) for the first particle in a cell (computed in Mesh.calc_particles_mesh_locations) looks for other particles
+                in the same cell. Verifies if distance between centers is less than smoothing lenfth (h). If so adds relation
+                to relations array (ConstrainedForceInteractions);
+            2) looks for other particles in adjacent cells. Verifies if distance between centers is less than smoothing length (h).
+                If so adds relation to relations array (ConstrainedForceInteractions);
+            3) goes to the next cell.
+        Distances between 2 particles in not computed twice.
+        '''
+
+        ar_axis0            = self.__ar_axis0
+        ar_axis1            = self.__ar_axis1
+        ar_axis2            = self.__ar_axis2
+
+        '''
+        2 additional columns had been added to make the algorithm easier to implement (beginning and end). There are no
+            particles in the last cell in every direction.
+        '''
+        max0                = len(ar_axis0)-2
+        max1                = len(ar_axis1)-2
+        max2                = len(ar_axis2)-2
+
+        h                   = self.__h
+
+        particle_index      = []                    # List of particles to remember every particle already computed
+        particle_cell       = None                  # List of cells where each particle is
+        f_conn              = []                    # Connections list
+
+
+        particle_cell       = np.array(pset.get_by_name(self.__cell)[:])
+        part_nbr            = len(particle_cell)-1
+
+        for x0 in range(1, max0):
+            for x1 in range(1, max1):
+                for x2 in range(1, max2):
+                    for i in range(0, part_nbr):
+                        if (particle_cell[i,0] == x0 and
+                            particle_cell[i,1] == x1 and
+                            particle_cell[i,2] == x2):
+                                particle_index.append(i)
+                                j = i
+
+                                for j in range(i, part_nbr):
+                                    if (j in particle_index):
+                                        pass
+                                    else:
+                                        if (particle_cell[j,0] == x0 and
+                                            particle_cell[j,1] == x1 and
+                                            particle_cell[j,2] == x2):
+                                                if (particle_cell[j+1,0] == x0 and
+                                                    particle_cell[j,  1] == x1 and
+                                                    particle_cell[j,  2] == x2):
+                                                        if (particle_cell[j+1,0] == x0 and
+                                                            particle_cell[j+1,1] == x1 and
+                                                            particle_cell[j,  2] == x2):
+                                                                if (particle_cell[j+1,0] == x0 and
+                                                                    particle_cell[j+1,1] == x1 and
+                                                                    particle_cell[j+1,2] == x2):
+                                                                        if (particle_cell[j,  0] == x0 and
+                                                                            particle_cell[j+1,1] == x1 and
+                                                                            particle_cell[j,  2] == x2):
+                                                                                if (particle_cell[j,  0] == x0 and
+                                                                                    particle_cell[j+1,1] == x1 and
+                                                                                    particle_cell[j+1,2] == x2):
+                                                                                        if (particle_cell[j,  0] == x0 and
+                                                                                            particle_cell[j,  1] == x1 and
+                                                                                            particle_cell[j+1,2] == x2):
+                                                                                                if (particle_cell[j+1,0] == x0 and
+                                                                                                    particle_cell[j,  1] == x1 and
+                                                                                                    particle_cell[j+1,2] == x2):
+                                                                                                        '''
+                                                                                                        Verifies if distance between 2 paricles
+                                                                                                            is less than smoothing length.
+                                                                                                        '''
+                                                                                                        x    = [self.__INI_FLOAT,self.__INI_FLOAT,self.__INI_FLOAT]
+                                                                                                        y    = [self.__INI_FLOAT,self.__INI_FLOAT,self.__INI_FLOAT]
+                                                                                                        dst  = self.__INI_FLOAT
+
+                                                                                                        x[0] = pset.X[i,0]
+                                                                                                        x[1] = pset.X[i,1]
+                                                                                                        x[2] = pset.X[i,2]
+                                                                                                        x    = np.array(x, dtype=np.float64)
+
+                                                                                                        y[0] = pset.X[j,0]
+                                                                                                        y[1] = pset.X[j,1]
+                                                                                                        y[2] = pset.X[j,2]
+                                                                                                        y    = np.array(y, dtype=np.float64)
+                                                                                                        dst  = distance(x, y)
+
+                                                                                                        if dst <= h:
+                                                                                                            conn = [self.__INI_INT,self.__INI_INT]
+                                                                                                            conn[0] = i
+                                                                                                            conn[1] = j
+                                                                                                            f_conn.append(conn)
+
+
+        f_conn  = np.array(f_conn, np.float64)
+        fi      = cfi.ConstrainedForceInteractions(pset)
+        fi.add_connections(f_conn)

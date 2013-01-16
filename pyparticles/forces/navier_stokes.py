@@ -78,7 +78,7 @@ class HPSSmothingKernels(object):
             \end{matrix}
     """
 
-    __INI_FLOAT = -9999.9 # To catch calculation error it is usefull because sometimes zero is a value that makes sence
+    __INI_FLOAT = -9999.9 # To catch calculation error it is useful because sometimes zero is a value that makes sense
 
     # Columns of the __smothing_kernels 2D array
     __sk_col_i          =  0
@@ -369,7 +369,7 @@ class HPSNavierStokes(object):
         return self.__reference_density
     def setreference_density(self, reference_density):
         self.__reference_density = reference_density
-    reference_density = property(getreference_density, setreference_density , doc="Manipulates the refernce density" )
+    reference_density = property(getreference_density, setreference_density , doc="Manipulates the reference density" )
 
     #-----------------------------------
 
@@ -413,7 +413,7 @@ class HPSNavierStokes(object):
 
         Parameters
 
-        :param    H:            Maximum water column heigth
+        :param    H:            Maximum water column height
         """
         gamma       = self.__gamma
         rd          = self.__reference_density
