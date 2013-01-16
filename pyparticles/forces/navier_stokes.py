@@ -117,6 +117,7 @@ class HPSSmothingKernels(object):
         self.__alpha = alpha
     alpha = property(getalpha, setalpha , doc="Manipulates alpha" )
 
+    #-----------------------------------
 
     def geth(self   ):
         return self.__h
@@ -152,6 +153,7 @@ class HPSSmothingKernels(object):
 
         return w_p6
 
+    #-----------------------------------
 
     def __w_poly6_gradiend(self, r):
         h        = self.__h
@@ -167,6 +169,7 @@ class HPSSmothingKernels(object):
 
         return w_p6_grd
 
+    #-----------------------------------
 
     def __w_poly6_laplace(self, r):
         h        = self.__h
@@ -183,6 +186,7 @@ class HPSSmothingKernels(object):
 
         return w_p6_lpl
 
+    #-----------------------------------
 
     def __w_spiky(self, r):
         h    = self.__h
@@ -198,6 +202,7 @@ class HPSSmothingKernels(object):
 
         return w_sp
 
+    #-----------------------------------
 
     def __w_spiky_gradiend(self, r):
         h        = self.__h
@@ -213,6 +218,7 @@ class HPSSmothingKernels(object):
 
         return w_sp_grd
 
+    #-----------------------------------
 
     def __w_viscosity(self, r):
         h    = self.__h
@@ -233,6 +239,7 @@ class HPSSmothingKernels(object):
 
         return w_vc
 
+    #-----------------------------------
 
     def __w_viscosity_gradiend(self, r):
         h        = self.__h
@@ -251,6 +258,7 @@ class HPSSmothingKernels(object):
 
         return w_vc_grd
 
+    #-----------------------------------
 
     def __w_viscosity_laplace(self, r):
         h        = self.__h
@@ -267,6 +275,7 @@ class HPSSmothingKernels(object):
 
         return w_vc_lpl
 
+    #-----------------------------------
 
     def calc_smothing_kernels(self, r, particle_i, particle_j, dtype=np.float64):
         '''
@@ -305,16 +314,17 @@ class HPSSmothingKernels(object):
         else:
             self.__smothing_kernels = np.append(self.__smothing_kernels, ij_smothing_kernels, axis = 1)
 
-
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
-
 
 class HPSNavierStokes(object):
 
+    __pressure = "pressure"        # Property added to particles_set
+
     # Init ---------------------------------------------------------------------
 
-    def __init__(self, reference_density = None,
+    def __init__(self, pset,
+                       reference_density = None,
                        coefficient       = None,
                        gamma             = None):
         if reference_density is None:
@@ -322,20 +332,20 @@ class HPSNavierStokes(object):
         else:
             self.__reference_density = reference_density
 
-
         if coefficient is None:
             self.__coefficient = 16.0 # For liquid water, 10<coefficient<40, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
         else:
             self.__coefficient = coefficient
-
 
         if gamma is None:
             self.__gamma = 7.0 # For liquid water, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
         else:
             self.__gamma = gamma
 
-
         self.__gravity_acceleration =-9.8
+
+        # particles_set has 1D property 'pressure'. Each particle has pressure.
+        pset.add_property_by_name(property_name = self.__pressure, dim = 1, to_type = np.float64)
 
     # Get and Set --------------------------------------------------------------
 
@@ -345,6 +355,7 @@ class HPSNavierStokes(object):
         self.__coefficient = coefficient
     coefficient = property(getcoefficient, setcoefficient , doc="Manipulates coefficient" )
 
+    #-----------------------------------
 
     def getgamma(self      ):
         return self.__gamma
@@ -352,6 +363,7 @@ class HPSNavierStokes(object):
         self.__gamma = gamma
     gamma = property(getgamma, setgamma , doc="Manipulates gamma" )
 
+    #-----------------------------------
 
     def getreference_density(self                   ):
         return self.__reference_density
@@ -359,13 +371,13 @@ class HPSNavierStokes(object):
         self.__reference_density = reference_density
     reference_density = property(getreference_density, setreference_density , doc="Manipulates the refernce density" )
 
+    #-----------------------------------
 
     def getgravity_acceleration(self                      ):
         return self.__gravity_acceleration
     def setgravity_acceleration(self, gravity_acceleration):
         self.__gravity_acceleration = gravity_acceleration
     gravity_acceleration = property(getgravity_acceleration, setgravity_acceleration , doc="Manipulates the gravity acceleration" )
-
 
     '''
     Methods --------------------------------------------------------------------
@@ -389,8 +401,9 @@ class HPSNavierStokes(object):
         coef2 = self.__coefficient**2
         return coef2*rd*h_SWL/gamma
 
+    #-----------------------------------
 
-    def calc_pressure(self, p_set, H):
+    def calc_pressure(self, pset, H):
         """
         The particles are assigned a pressure.
         For liquid water, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
@@ -402,13 +415,16 @@ class HPSNavierStokes(object):
 
         :param    H:            Maximum water column heigth
         """
-        gamma = self.__gamma
-        rd    = self.__reference_density
-        B     = self.__calc_B(h_SWL=H)
-        return B * (np.power((p_set.D[:]/rd), gamma) - 1)
+        gamma       = self.__gamma
+        rd          = self.__reference_density
+        B           = self.__calc_B(h_SWL=H)
+        pressure    = self.__pressure
 
+        pset.get_by_name(pressure)[:] = B * (np.power((pset.D[:]/rd), gamma) - 1)
 
-    def calc_density_water_rest(self, p_set, H):
+    #-----------------------------------
+
+    def calc_density_water_rest(self, pset, H):
         """
         The particles are assigned an initial density based on hydrostatic pressure.
         For liquid water, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
@@ -420,11 +436,11 @@ class HPSNavierStokes(object):
 
         :param    H:            Maximum water column heigth
         """
-        rd    = self.__reference_density
-        g     = self.__gravity_acceleration
-        gamma = self.__gamma
-        B     = self.__calc_B(h_SWL=H)
-        p_set.D[:] = rd * np.power((1 + (rd*np.abs(g)*(H-p_set.X[:,2,np.newaxis]))/B), 1./gamma)
+        rd          = self.__reference_density
+        g           = self.__gravity_acceleration
+        gamma       = self.__gamma
+        B           = self.__calc_B(h_SWL=H)
+        pset.D[:]   = rd * np.power((1 + (rd*np.abs(g)*(H-pset.X[:,2,np.newaxis]))/B), 1./gamma)
 
 
 

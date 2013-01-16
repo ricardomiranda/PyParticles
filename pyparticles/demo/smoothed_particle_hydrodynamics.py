@@ -1,5 +1,5 @@
 # PyParticles : Particles simulation in python
-# Copyright (C) 2012  Ricardo Miranda
+# Copyright (C) 2013  Ricardo Miranda
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,6 +40,8 @@ import pyparticles.pset.default_boundary                as db
 import pyparticles.pset.rebound_boundary                as rb
 import pyparticles.pset.constrained_x                   as csx
 import pyparticles.pset.constrained_force_interactions  as cfi
+
+import pyparticles.geometry.mesh                        as msh
 
 from pyparticles.utils.pypart_global import test_pyopencl
 
@@ -196,8 +198,8 @@ def cube_water():
 
     steps   = 10000000              # Number of steps
     dt      = 0.005                 # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
-#    dx      = 0.1                 # spacing between particles L/Nx
-    dx      = 0.025                 # spacing between particles L/Nx
+    dx      = 0.1                 # spacing between particles L/Nx
+#    dx      = 0.025                 # spacing between particles L/Nx
     aux     = ((1.0/dx)-1.0)
     pcntVol = aux*aux*aux           # Number of particles in
     aux     = aux+2.0
@@ -225,17 +227,27 @@ def cube_water():
                 fl = False
 
 
-    pset    = ps.ParticlesSet   (size = np.int(pcnt), mass = True ,density = True ,dtype=np.float64 )
+    pset    = ps.ParticlesSet   (size = np.int64(pcnt), mass = True, density = True, dtype   = np.float64)
+    pset.add_property_by_name   (property_name = "pressure",                         to_type = np.float64)
 
     initial_pos                 (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
     costrs  = boundaryParticles (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
     initial_vel                 (pset=pset, pcnt=np.int(pcnt)                                                                )
     initial_pressure            (pset=pset, pcnt=np.int(pcnt),                                                            L=L)
 
-    nstk = ns.HPSNavierStokes()
-    nstk.calc_density_water_rest(p_set=pset, H=L)
+    nstk = ns.HPSNavierStokes   (pset=pset     )
+    nstk.calc_density_water_rest(pset=pset, H=L)
+    nstk.calc_pressure          (pset=pset, H=L)
 
     pset.M[:] = 1000.0*L*L*L / pcntVol
+
+    sk      = ns.HPSSmothingKernels()
+    h       = sk.h
+    point1  = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+    point2  = np.array([L,   L,   L  ], dtype=np.float64)
+    mesh    = msh.Mesh                  (pset=pset, h = h, point1 = point1, point2 = point2)
+    mesh.calc_mesh                      ()
+    mesh.calc_particles_mesh_locations  (pset=pset, dtype=np.float64)
 
     grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 
