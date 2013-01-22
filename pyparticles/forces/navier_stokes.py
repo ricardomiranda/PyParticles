@@ -93,11 +93,13 @@ class HPSSmothingKernels(object):
     __sk_col_w_vc_lpl   =  9
 
     __smothing_kernels  = None
+    __ij_dst            = []                    # List of distances between particles i and j
+
 
     # Init ---------------------------------------------------------------------
 
-    def __init__(self, h                 = None,
-                       alpha             = None):
+    def __init__(self, h     = None,
+                       alpha = None):
         if h is None:
             self.__h = 0.012 # For liquid water=0.012 m, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
         else:
@@ -115,7 +117,7 @@ class HPSSmothingKernels(object):
         return self.__alpha
     def setalpha(self, alpha):
         self.__alpha = alpha
-    alpha = property(getalpha, setalpha , doc="Manipulates alpha" )
+    alpha = property(getalpha, setalpha, doc="Manipulates alpha")
 
     #-----------------------------------
 
@@ -123,7 +125,17 @@ class HPSSmothingKernels(object):
         return self.__h
     def seth(self, h):
         self.__h = h
-    h = property(geth, seth , doc="Manipulates smothing length" )
+    h = property(geth, seth, doc="Manipulates smothing length")
+
+    #-----------------------------------
+
+    def getij_dst(self        ):
+        return self.__ij_dst
+    def setij_dst(self, ij_dst):
+        self.__ij_dst = ij_dst
+    def delij_dst(self, ij_dst):
+        self.__ij_dst = None
+    h = property(getij_dst, setij_dst, delij_dst, doc="Manipulates distances between particles")
 
     '''
     Methods --------------------------------------------------------------------
@@ -277,7 +289,7 @@ class HPSSmothingKernels(object):
 
     #-----------------------------------
 
-    def calc_smothing_kernels(self, r, particle_i, particle_j, dtype=np.float64):
+    def calc_smothing_kernels(self, pset, dtype=np.float64):
         '''
         r is the distance between particles 'i' and 'j'
         '''

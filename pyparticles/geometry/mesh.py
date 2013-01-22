@@ -17,6 +17,7 @@
 import numpy                                            as np
 import pyparticles.pset.particles_set                   as ps
 import pyparticles.pset.constrained_force_interactions  as cfi
+import pyparticles.forces.navier_stokes                 as ns
 
 from pyparticles.geometry.dist import distance
 
@@ -96,6 +97,7 @@ class Mesh(object):
         calc_mesh
         calc_particle_mesh_location
         calc_particles_that_interact
+            __particle_is_in_cell
     '''
 
     def calc_mesh(self, h         = None,
@@ -181,7 +183,17 @@ class Mesh(object):
 
     #-----------------------------------
 
-    def calc_particles_that_interact(self, pset):
+    def __particle_is_in_cell(self, part_ij, cell_ij):
+        if (part_ij[0] == cell_ij[0] and
+            part_ij[1] == cell_ij[1] and
+            part_ij[2] == cell_ij[2]):
+                return True
+        else:
+            return False
+
+    #-----------------------------------
+
+    def calc_particles_that_interact(self, pset, fi, ns):
         '''
         Covers the entire mesh looking for particles. Algorithm:
             1) for the first particle in a cell (computed in Mesh.calc_particles_mesh_locations) looks for other particles
@@ -206,79 +218,98 @@ class Mesh(object):
         max2                = len(ar_axis2)-2
 
         h                   = self.__h
-
         particle_index      = []                    # List of particles to remember every particle already computed
         particle_cell       = None                  # List of cells where each particle is
         f_conn              = []                    # Connections list
-
+        ij_dst              = []                    # List of distances between particles i and j
 
         particle_cell       = np.array(pset.get_by_name(self.__cell)[:])
         part_nbr            = len(particle_cell)-1
 
+        # Scans the entire mesh
         for x0 in range(1, max0):
             for x1 in range(1, max1):
                 for x2 in range(1, max2):
                     for i in range(0, part_nbr):
-                        if (particle_cell[i,0] == x0 and
-                            particle_cell[i,1] == x1 and
-                            particle_cell[i,2] == x2):
-                                particle_index.append(i)
-                                j = i
+                        # Reference particle
+                        if self.__particle_is_in_cell(particle_cell[i,:], (x0,x1,x2)):
+                            particle_index.append(i)
+                            j = i
 
-                                for j in range(i, part_nbr):
-                                    if (j in particle_index):
-                                        pass
-                                    else:
-                                        if (particle_cell[j,0] == x0 and
-                                            particle_cell[j,1] == x1 and
-                                            particle_cell[j,2] == x2):
-                                                if (particle_cell[j+1,0] == x0 and
-                                                    particle_cell[j,  1] == x1 and
-                                                    particle_cell[j,  2] == x2):
-                                                        if (particle_cell[j+1,0] == x0 and
-                                                            particle_cell[j+1,1] == x1 and
-                                                            particle_cell[j,  2] == x2):
-                                                                if (particle_cell[j+1,0] == x0 and
-                                                                    particle_cell[j+1,1] == x1 and
-                                                                    particle_cell[j+1,2] == x2):
-                                                                        if (particle_cell[j,  0] == x0 and
-                                                                            particle_cell[j+1,1] == x1 and
-                                                                            particle_cell[j,  2] == x2):
-                                                                                if (particle_cell[j,  0] == x0 and
-                                                                                    particle_cell[j+1,1] == x1 and
-                                                                                    particle_cell[j+1,2] == x2):
-                                                                                        if (particle_cell[j,  0] == x0 and
-                                                                                            particle_cell[j,  1] == x1 and
-                                                                                            particle_cell[j+1,2] == x2):
-                                                                                                if (particle_cell[j+1,0] == x0 and
-                                                                                                    particle_cell[j,  1] == x1 and
-                                                                                                    particle_cell[j+1,2] == x2):
-                                                                                                        '''
-                                                                                                        Verifies if distance between 2 paricles
-                                                                                                            is less than smoothing length.
-                                                                                                        '''
-                                                                                                        x    = [self.__INI_FLOAT,self.__INI_FLOAT,self.__INI_FLOAT]
-                                                                                                        y    = [self.__INI_FLOAT,self.__INI_FLOAT,self.__INI_FLOAT]
-                                                                                                        dst  = self.__INI_FLOAT
+                            two_part_found = False
 
-                                                                                                        x[0] = pset.X[i,0]
-                                                                                                        x[1] = pset.X[i,1]
-                                                                                                        x[2] = pset.X[i,2]
-                                                                                                        x    = np.array(x, dtype=np.float64)
+                            # Scans particles_set
+                            for j in range(i, part_nbr):
+                                if (j in particle_index):
+                                    pass
+                                else:
+                                    # Checks in 9 cells if there are particles
+                                    if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2  )):
+                                        x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                        y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                        two_part_found = True
 
-                                                                                                        y[0] = pset.X[j,0]
-                                                                                                        y[1] = pset.X[j,1]
-                                                                                                        y[2] = pset.X[j,2]
-                                                                                                        y    = np.array(y, dtype=np.float64)
-                                                                                                        dst  = distance(x, y)
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1,  x2  )):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
 
-                                                                                                        if dst <= h:
-                                                                                                            conn = [self.__INI_INT,self.__INI_INT]
-                                                                                                            conn[0] = i
-                                                                                                            conn[1] = j
-                                                                                                            f_conn.append(conn)
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2  )):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
+
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2+1)):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
+
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2  )):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
+
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2+1)):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
+
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2+1)):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
+
+                                    if two_part_found == False:
+                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1  ,x2+1)):
+                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                                            two_part_found = True
 
 
-        f_conn  = np.array(f_conn, np.float64)
-        fi      = cfi.ConstrainedForceInteractions(pset)
+                                    if two_part_found:
+                                        dist    = distance(x, y)
+
+                                        if dist <= h:
+                                            conn    = [self.__INI_INT,  self.__INI_INT                   ]
+                                            dst     = [self.__INI_FLOAT,self.__INI_FLOAT,self.__INI_FLOAT]
+
+                                            conn    = [i,j     ]
+                                            dst     = [i,j,dist]
+
+                                            f_conn.append(conn)
+                                            ij_dst.append(dst )
+
+        ns.ij_dst   = np.array(ij_dst, np.float64)
+        f_conn      = np.array(f_conn, np.float64)
         fi.add_connections(f_conn)
+
+        '''
+        Para actualizar as ligacoes sera necessario introduzir um del items na classe ConstrainedForceInteractions
+        print fi.items
+        '''

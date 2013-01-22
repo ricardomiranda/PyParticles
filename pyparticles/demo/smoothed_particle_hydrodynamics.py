@@ -242,15 +242,18 @@ def cube_water():
 
     pset.M[:] = 1000.0*L*L*L / pcntVol
 
+    fi      = cfi.ConstrainedForceInteractions(pset)
     sk      = ns.HPSSmothingKernels()
     sk.h    = h_local                                   # RCM, for tests
     h       = sk.h
+#    sk.calc_smothing_kernels        (pset=pset)         # RCM
+
     point1  = np.array([0.0, 0.0, 0.0], dtype=np.float64)
     point2  = np.array([L,   L,   L  ], dtype=np.float64)
     mesh    = msh.Mesh                  (pset=pset, h = h, point1 = point1, point2 = point2)
     mesh.calc_mesh                      ()
     mesh.calc_particles_mesh_locations  (pset=pset, dtype=np.float64)
-    mesh.calc_particles_that_interact   (pset=pset)
+    mesh.calc_particles_that_interact   (pset=pset, fi=fi, ns=ns)
 
     grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 
