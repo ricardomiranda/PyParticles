@@ -79,7 +79,7 @@ def spring_constr():
     #pset.X[10:15,1] = 6
 
     ci = np.array( [ 0 , len(ar)-1 ] )
-    print ci
+
     cx = np.array( [
                     [ -4.0 , -4.0 , 3.0] ,
                     [ 4.0 , 4.0 ,  3.0]

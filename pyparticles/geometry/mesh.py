@@ -193,7 +193,7 @@ class Mesh(object):
 
     #-----------------------------------
 
-    def calc_particles_that_interact(self, pset, fi, ns):
+    def calc_particles_that_interact(self, pset, fi, sk):
         '''
         Covers the entire mesh looking for particles. Algorithm:
             1) for the first particle in a cell (computed in Mesh.calc_particles_mesh_locations) looks for other particles
@@ -236,10 +236,10 @@ class Mesh(object):
                             particle_index.append(i)
                             j = i
 
-                            two_part_found = False
-
                             # Scans particles_set
                             for j in range(i, part_nbr):
+                                two_part_found = False
+
                                 if (j in particle_index):
                                     pass
                                 else:
@@ -293,23 +293,16 @@ class Mesh(object):
 
 
                                     if two_part_found:
+                                        dist    = self.__INI_FLOAT
                                         dist    = distance(x, y)
 
                                         if dist <= h:
-                                            conn    = [self.__INI_INT,  self.__INI_INT                   ]
-                                            dst     = [self.__INI_FLOAT,self.__INI_FLOAT,self.__INI_FLOAT]
+                                            conn    = [self.__INI_INT,  self.__INI_INT]
+                                            conn    = [i,j]
 
-                                            conn    = [i,j     ]
-                                            dst     = [i,j,dist]
-
+                                            ij_dst.append(dist)
                                             f_conn.append(conn)
-                                            ij_dst.append(dst )
 
-        ns.ij_dst   = np.array(ij_dst, np.float64)
-        f_conn      = np.array(f_conn, np.float64)
-        fi.add_connections(f_conn)
+        fi.add_connections  (fc=f_conn             )
+        sk.add_distances    (fc=f_conn, dist=ij_dst)
 
-        '''
-        Para actualizar as ligacoes sera necessario introduzir um del items na classe ConstrainedForceInteractions
-        print fi.items
-        '''

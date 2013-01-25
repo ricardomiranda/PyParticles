@@ -15,8 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-import numpy                          as        np
-import pyparticles.pset.particles_set as        ps
+import numpy                                            as np
+import scipy.sparse.dok                                 as dok
+import pyparticles.pset.particles_set                   as ps
 
 
 class HPSSmothingKernels(object):
@@ -79,39 +80,44 @@ class HPSSmothingKernels(object):
     """
 
     __INI_FLOAT = -9999.9 # To catch calculation error it is useful because sometimes zero is a value that makes sense
-
-    # Columns of the __smothing_kernels 2D array
-    __sk_col_i          =  0
-    __sk_col_j          =  1
-    __sk_col_w_p6       =  2
-    __sk_col_w_p6_grd   =  3
-    __sk_col_w_p6_lpl   =  4
-    __sk_col_w_sp       =  5
-    __sk_col_w_sp_grd   =  6
-    __sk_col_w_vc       =  7
-    __sk_col_w_vc_grd   =  8
-    __sk_col_w_vc_lpl   =  9
-
-    __smothing_kernels  = None
-    __ij_dst            = []                    # List of distances between particles i and j
-
+    __INI_INT   = -9999   # To catch calculation error it is useful because sometimes zero is a value that makes scene
 
     # Init ---------------------------------------------------------------------
 
-    def __init__(self, h     = None,
+    def __init__(self, pset,
+                       h     = None,
                        alpha = None):
         if h is None:
-            self.__h = 0.012 # For liquid water=0.012 m, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
+            self.__h = 0.012            # For liquid water=0.012 m, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
         else:
             self.__h = h
 
         if alpha is None:
-            self.__alpha = 0.5 # For liquid water, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
+            self.__alpha = 0.5          # For liquid water, incompressible flow, Alejandro Jacobo Cabrera Crespo (2008)
         else:
             self.__alpha = alpha
 
+        self.__r            = dok.dok_matrix((pset.size, pset.size), dtype=np.float64) # List of distances between particles i and j
+
+        # Smothing kernels sparce matrixes
+        self.__w_p6         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_p6_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_p6_lpl     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_sp         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_sp_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_vc         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_vc_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        self.__w_vc_lpl     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
 
     # Get and Set --------------------------------------------------------------
+
+    def add_distances(self, fc, dist):
+        n       = 0
+        for c in fc:
+            self.__r[ c[0] , c[1] ] = dist[n]
+            n=n+1
+
+    #-----------------------------------
 
     def getalpha(self       ):
         return self.__alpha
@@ -129,13 +135,9 @@ class HPSSmothingKernels(object):
 
     #-----------------------------------
 
-    def getij_dst(self        ):
-        return self.__ij_dst
-    def setij_dst(self, ij_dst):
-        self.__ij_dst = ij_dst
-    def delij_dst(self, ij_dst):
-        self.__ij_dst = None
-    h = property(getij_dst, setij_dst, delij_dst, doc="Manipulates distances between particles")
+    def getr(self   ):
+        return self.__r
+    r = property(getr, doc="Getter distances between particles")
 
     '''
     Methods --------------------------------------------------------------------
@@ -157,7 +159,6 @@ class HPSSmothingKernels(object):
         w_p6 = self.__INI_FLOAT
         if   0 <= r and r <= h:
             w_p6 = 315.0/(64.0*pi* np.power(h, 9)) * np.power(np.power(h, 2) - np.power(r, 2), 3)
-            print 'r=',r,'h=',h,'w_p6=',w_p6
         elif r >  h:
             w_p6 = 0.0
         else:
@@ -289,42 +290,26 @@ class HPSSmothingKernels(object):
 
     #-----------------------------------
 
-    def calc_smothing_kernels(self, pset, dtype=np.float64):
+    def calc_smothing_kernels(self, pset):
         '''
         r is the distance between particles 'i' and 'j'
         '''
-        ij_smothing_kernels = self.__INI_FLOAT * np.ones((10), dtype=dtype)
+        items = self.__r.items()
+        for item in items:
+            conn    = [self.__INI_INT,  self.__INI_INT]
+            dist    = self.__INI_FLOAT
 
-        ij_smothing_kernels[self.__sk_col_i          ] = particle_i
-        ij_smothing_kernels[self.__sk_col_j          ] = particle_j
-        ij_smothing_kernels[self.__sk_col_w_p6       ] = self.__w_poly6              (r=r)
-        ij_smothing_kernels[self.__sk_col_w_p6_grd   ] = self.__w_poly6_gradiend     (r=r)
-        ij_smothing_kernels[self.__sk_col_w_p6_lpl   ] = self.__w_poly6_laplace      (r=r)
-        ij_smothing_kernels[self.__sk_col_w_sp       ] = self.__w_spiky              (r=r)
-        ij_smothing_kernels[self.__sk_col_w_sp_grd   ] = self.__w_spiky_gradiend     (r=r)
-        ij_smothing_kernels[self.__sk_col_w_vc       ] = self.__w_viscosity          (r=r)
-        ij_smothing_kernels[self.__sk_col_w_vc_grd   ] = self.__w_viscosity_gradiend (r=r)
-        ij_smothing_kernels[self.__sk_col_w_vc_lpl   ] = self.__w_viscosity_laplace  (r=r)
+            conn    = item[0]
+            dist    = item[1]
 
-        '''
-        A NumPy array is a very different data structure from a list and is designed to be used in different ways. Your
-        use of hstack is potentially very inefficient... every time you call it, all the data in the existing array is
-        copied into a new one. (The append function will have the same issue.) If you want to build up your matrix one
-        column at a time, you might be best off to keep it in a list until it is finished, and only then convert it into
-        an array.
-
-        mylist = []
-        for item in data:
-            mylist.append(item)
-        mat = numpy.array(mylist)
-
-        item can be a list, an array or any iterable, as long as each item has the same number of elements.
-        '''
-
-        if self.__smothing_kernels == None:
-            self.__smothing_kernels = ij_smothing_kernels
-        else:
-            self.__smothing_kernels = np.append(self.__smothing_kernels, ij_smothing_kernels, axis = 1)
+            self.__w_p6    [conn[0], conn[1]] = self.__w_poly6              (r=dist)
+            self.__w_p6_grd[conn[0], conn[1]] = self.__w_poly6_gradiend     (r=dist)
+            self.__w_p6_lpl[conn[0], conn[1]] = self.__w_poly6_laplace      (r=dist)
+            self.__w_sp    [conn[0], conn[1]] = self.__w_spiky              (r=dist)
+            self.__w_sp_grd[conn[0], conn[1]] = self.__w_spiky_gradiend     (r=dist)
+            self.__w_vc    [conn[0], conn[1]] = self.__w_viscosity          (r=dist)
+            self.__w_vc_grd[conn[0], conn[1]] = self.__w_viscosity_gradiend (r=dist)
+            self.__w_vc_lpl[conn[0], conn[1]] = self.__w_viscosity_laplace  (r=dist)
 
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------

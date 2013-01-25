@@ -59,15 +59,14 @@ def initial_pos      (pset, pcnt, pcntVol, pcntWall, ar, L):
     """
 
     # Volume
-    n = 0
+    n = pcntWall
     for i in range(1, len(ar)-1):
         for j in range(1, len(ar)-1):
-            for k in range(1, len(ar)-1):
+            for k in range(1, len(ar)):
                 pset.X[n,0] = ar[i] * L
                 pset.X[n,1] = ar[j] * L
                 pset.X[n,2] = ar[k] * L
                 n           = n + 1
-
 
 def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
     """
@@ -79,7 +78,7 @@ def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
     cx      = None                      # Array with fixed positions of the boundary virtual particles
 
     # Bottom
-    n = pcntVol
+    n = 0
     for i in range(0, len(ar)):
         for j in range(0, len(ar)):
             k           = 0
@@ -106,7 +105,7 @@ def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
 
     # Wall 1
     for j in range(0, len(ar)):
-        for k in range(0, len(ar)):
+        for k in range(1, len(ar)):
             i           = 0
             pset.X[n,0] = ar[i] * L
             pset.X[n,1] = ar[j] * L
@@ -122,7 +121,7 @@ def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
 
     # Wall 2
     for j in range(0, len(ar)):
-        for k in range(0, len(ar)):
+        for k in range(1, len(ar)):
             i           = len(ar)-1
             pset.X[n,0] = ar[i] * L
             pset.X[n,1] = ar[j] * L
@@ -137,8 +136,8 @@ def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
             n           = n + 1
 
     # Wall 3
-    for i in range(0, len(ar)):
-        for k in range(0, len(ar)):
+    for i in range(1, len(ar)-1):
+        for k in range(1, len(ar)):
             j           = 0
             pset.X[n,0] = ar[i] * L
             pset.X[n,1] = ar[j] * L
@@ -153,8 +152,8 @@ def boundaryParticles(pset, pcnt, pcntVol, pcntWall, ar, L):
             n           = n + 1
 
     # Wall 4
-    for i in range(0, len(ar)):
-        for k in range(0, len(ar)):
+    for i in range(1, len(ar)-1):
+        for k in range(1, len(ar)):
             j           = len(ar)-1
             pset.X[n,0] = ar[i] * L
             pset.X[n,1] = ar[j] * L
@@ -196,19 +195,19 @@ def cube_water():
     Smoothed particle hydrodynamics cube of water exemple
     """
 
-    steps   = 10000000              # Number of steps
-    dt      = 0.005                 # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
-    dx      = 0.1                 # spacing between particles L/Nx
-#    dx      = 0.025                 # spacing between particles L/Nx
-    aux     = ((1.0/dx)-1.0)
-    pcntVol = aux*aux*aux           # Number of particles in
-    aux     = aux+2.0
-    pcntWall= aux*aux               # Number of particles in wallls
-    pcnt    = pcntVol+pcntWall*5
-    L       =  1.0                  # Water cube size
-    g       = -9.8                  # Gravity acceleration
+    steps   = 10000000                      # Number of steps
+    dt      = 0.005                         # dt should be defined according to a numerical stability parameter, a simple one will be dt<2h/vmax
+    dx      = 0.1                           # spacing between particles L/Nx
+#    dx      = 0.025                         # spacing between particles L/Nx
+    aux     = (int(1.0/dx)-1)
+    pcntVol = aux*aux*(aux+1)               # Number of particles in volume
+    pcntWall= (aux+2)*(aux+2)               # Number of particles in the bottom
+    pcntWall= pcntWall+(aux+1)*(aux+1)*4    # Number of particles in wallls
+    pcnt    = pcntVol+pcntWall
+    L       =  1.0                          # Water cube size
+    g       = -9.8                          # Gravity acceleration
 
-    h_local = .222
+    h_local = .15
 
     ar = np.arange(0, 1+dx, dx)
 
@@ -231,8 +230,8 @@ def cube_water():
     pset    = ps.ParticlesSet   (size = np.int64(pcnt), mass = True, density = True, dtype   = np.float64)
     pset.add_property_by_name   (property_name = "pressure",                         to_type = np.float64)
 
-    initial_pos                 (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
     costrs  = boundaryParticles (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
+    initial_pos                 (pset=pset, pcnt=np.int(pcnt), pcntVol=np.int(pcntVol), pcntWall=np.int(pcntWall), ar=ar, L=L)
     initial_vel                 (pset=pset, pcnt=np.int(pcnt)                                                                )
     initial_pressure            (pset=pset, pcnt=np.int(pcnt),                                                            L=L)
 
@@ -243,7 +242,7 @@ def cube_water():
     pset.M[:] = 1000.0*L*L*L / pcntVol
 
     fi      = cfi.ConstrainedForceInteractions(pset)
-    sk      = ns.HPSSmothingKernels()
+    sk      = ns.HPSSmothingKernels(pset=pset)
     sk.h    = h_local                                   # RCM, for tests
     h       = sk.h
 #    sk.calc_smothing_kernels        (pset=pset)         # RCM
@@ -253,7 +252,8 @@ def cube_water():
     mesh    = msh.Mesh                  (pset=pset, h = h, point1 = point1, point2 = point2)
     mesh.calc_mesh                      ()
     mesh.calc_particles_mesh_locations  (pset=pset, dtype=np.float64)
-    mesh.calc_particles_that_interact   (pset=pset, fi=fi, ns=ns)
+    mesh.calc_particles_that_interact   (pset=pset, fi=fi, sk=sk)
+    sk.calc_smothing_kernels            (pset=pset)
 
     grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 
