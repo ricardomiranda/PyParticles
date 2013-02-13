@@ -82,7 +82,17 @@ class HPSSmothingKernels(object):
     __INI_FLOAT = -9999.9 # To catch calculation error it is useful because sometimes zero is a value that makes sense
     __INI_INT   = -9999   # To catch calculation error it is useful because sometimes zero is a value that makes scene
 
-    # Init ---------------------------------------------------------------------
+    # Smothing kernels sparce matrixes
+    __w_p6      = None 
+    __w_p6_grd  = None     
+    __w_p6_lpl  = None
+    __w_sp      = None
+    __w_sp_grd  = None    
+    __w_vc      = None
+    __w_vc_grd  = None
+    __w_vc_lpl  = None
+
+# Init ---------------------------------------------------------------------
 
     def __init__(self, pset,
                        h     = None,
@@ -99,7 +109,7 @@ class HPSSmothingKernels(object):
 
         self.__r            = dok.dok_matrix((pset.size, pset.size), dtype=np.float64) # List of distances between particles i and j
 
-        # Smothing kernels sparce matrixes
+        '''
         self.__w_p6         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
         self.__w_p6_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
         self.__w_p6_lpl     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
@@ -108,6 +118,7 @@ class HPSSmothingKernels(object):
         self.__w_vc         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
         self.__w_vc_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
         self.__w_vc_lpl     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
+        '''
 
     # Get and Set --------------------------------------------------------------
 
@@ -117,23 +128,17 @@ class HPSSmothingKernels(object):
             self.__r[ c[0] , c[1] ] = dist[n]
             n=n+1
 
-    #-----------------------------------
-
     def getalpha(self       ):
         return self.__alpha
     def setalpha(self, alpha):
         self.__alpha = alpha
     alpha = property(getalpha, setalpha, doc="Manipulates alpha")
 
-    #-----------------------------------
-
     def geth(self   ):
         return self.__h
     def seth(self, h):
         self.__h = h
     h = property(geth, seth, doc="Manipulates smothing length")
-
-    #-----------------------------------
 
     def getr(self   ):
         return self.__r
@@ -166,8 +171,6 @@ class HPSSmothingKernels(object):
 
         return w_p6
 
-    #-----------------------------------
-
     def __w_poly6_gradiend(self, r):
         h        = self.__h
         pi       = np.pi
@@ -181,8 +184,6 @@ class HPSSmothingKernels(object):
             sys.exit(self, msg="navier_stokes.HPSSmothingKernels.w_poly6_gradiend")
 
         return w_p6_grd
-
-    #-----------------------------------
 
     def __w_poly6_laplace(self, r):
         h        = self.__h
@@ -199,8 +200,6 @@ class HPSSmothingKernels(object):
 
         return w_p6_lpl
 
-    #-----------------------------------
-
     def __w_spiky(self, r):
         h    = self.__h
         pi       = np.pi
@@ -215,8 +214,6 @@ class HPSSmothingKernels(object):
 
         return w_sp
 
-    #-----------------------------------
-
     def __w_spiky_gradiend(self, r):
         h        = self.__h
         pi       = np.pi
@@ -230,8 +227,6 @@ class HPSSmothingKernels(object):
             sys.exit(self, msg="navier_stokes.HPSSmothingKernels.w_spiky_gradiend")
 
         return w_sp_grd
-
-    #-----------------------------------
 
     def __w_viscosity(self, r):
         h    = self.__h
@@ -252,8 +247,6 @@ class HPSSmothingKernels(object):
 
         return w_vc
 
-    #-----------------------------------
-
     def __w_viscosity_gradiend(self, r):
         h        = self.__h
         pi       = np.pi
@@ -271,8 +264,6 @@ class HPSSmothingKernels(object):
 
         return w_vc_grd
 
-    #-----------------------------------
-
     def __w_viscosity_laplace(self, r):
         h        = self.__h
         pi       = np.pi
@@ -288,28 +279,31 @@ class HPSSmothingKernels(object):
 
         return w_vc_lpl
 
-    #-----------------------------------
-
     def calc_smothing_kernels(self, pset):
+        self.__w_p6 = self.map_kernel(fn_kernel = self.__w_poly6,                   pset = pset)
+        self.__w_p6_grd = self.map_kernel(fn_kernel = self.__w_poly6_gradiend,      pset = pset)
+        self.__w_p6_lpl = self.map_kernel(fn_kernel = self.__w_poly6_laplace,       pset = pset)
+        self.__w_sp     = self.map_kernel(fn_kernel = self.__w_spiky,               pset = pset)
+        self.__w_sp_grd = self.map_kernel(fn_kernel = self.__w_spiky_gradiend,      pset = pset)
+        self.__w_vc     = self.map_kernel(fn_kernel = self.__w_viscosity,           pset = pset)
+        self.__w_vc_grd = self.map_kernel(fn_kernel = self.__w_viscosity_gradiend,  pset = pset)
+        self.__w_vc_lpl = self.map_kernel(fn_kernel = self.__w_viscosity_laplace,   pset = pset)
+
+    def map_kernel (self,  fn_kernel, pset):
         '''
         r is the distance between particles 'i' and 'j'
         '''
+        kernel = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
         items = self.__r.items()
         for item in items:
             conn    = [self.__INI_INT,  self.__INI_INT]
-            dist    = self.__INI_FLOAT
+            r       = self.__INI_FLOAT
 
             conn    = item[0]
-            dist    = item[1]
+            r       = item[1]
 
-            self.__w_p6    [conn[0], conn[1]] = self.__w_poly6              (r=dist)
-            self.__w_p6_grd[conn[0], conn[1]] = self.__w_poly6_gradiend     (r=dist)
-            self.__w_p6_lpl[conn[0], conn[1]] = self.__w_poly6_laplace      (r=dist)
-            self.__w_sp    [conn[0], conn[1]] = self.__w_spiky              (r=dist)
-            self.__w_sp_grd[conn[0], conn[1]] = self.__w_spiky_gradiend     (r=dist)
-            self.__w_vc    [conn[0], conn[1]] = self.__w_viscosity          (r=dist)
-            self.__w_vc_grd[conn[0], conn[1]] = self.__w_viscosity_gradiend (r=dist)
-            self.__w_vc_lpl[conn[0], conn[1]] = self.__w_viscosity_laplace  (r=dist)
+            kernel [conn[0], conn[1]] = fn_kernel(r=r)
+        return kernel   
 
 #-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
@@ -352,23 +346,17 @@ class HPSNavierStokes(object):
         self.__coefficient = coefficient
     coefficient = property(getcoefficient, setcoefficient , doc="Manipulates coefficient" )
 
-    #-----------------------------------
-
     def getgamma(self      ):
         return self.__gamma
     def setgamma(self, gamma):
         self.__gamma = gamma
     gamma = property(getgamma, setgamma , doc="Manipulates gamma" )
 
-    #-----------------------------------
-
     def getreference_density(self                   ):
         return self.__reference_density
     def setreference_density(self, reference_density):
         self.__reference_density = reference_density
     reference_density = property(getreference_density, setreference_density , doc="Manipulates the reference density" )
-
-    #-----------------------------------
 
     def getgravity_acceleration(self                      ):
         return self.__gravity_acceleration
@@ -398,8 +386,6 @@ class HPSNavierStokes(object):
         coef2 = self.__coefficient**2
         return coef2*rd*h_SWL/gamma
 
-    #-----------------------------------
-
     def calc_pressure(self, pset, H):
         """
         The particles are assigned a pressure.
@@ -418,8 +404,6 @@ class HPSNavierStokes(object):
         pressure    = self.__pressure
 
         pset.get_by_name(pressure)[:] = B * (np.power((pset.D[:]/rd), gamma) - 1)
-
-    #-----------------------------------
 
     def calc_density_water_rest(self, pset, H):
         """

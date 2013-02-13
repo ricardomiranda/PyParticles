@@ -6,7 +6,7 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This program is distributed in the hope that it will be useful,python arrays map   functional programmnig
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -14,8 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy                                            as np
-import pyparticles.pset.particles_set                   as ps
+import numpy                                                        as np
+import pyparticles.pset.particles_set                               as ps
 import pyparticles.pset.constrained_force_interactions  as cfi
 import pyparticles.forces.navier_stokes                 as ns
 
@@ -42,26 +42,26 @@ class Mesh(object):
     __ar_axis1      = None
     __ar_axis2      = None
     __h             = None          # h is the mesh spacing (equal to smoothing length)
-    __point1        = None          # Point1 is the the first corner of the volume that contains all the particles
-    __point2        = None          # Point2 is the the second corner of the volume that contains all the particles
+    __corner1       = None          # Corner1 is the the first corner of the volume that contains all the particles
+    __corner2       = None          # Corner2 is the the second corner of the volume that contains all the particles
     __cell          = "cell"        # Property added to particles_set
 
     # Init ---------------------------------------------------------------------
 
     def __init__(self, pset,
-                       h        = None,
-                       point1   = None,
-                       point2   = None,
-                       dtype    = np.float64):
+                       h         = None,
+                       corner1   = None,
+                       corner2   = None,
+                       dtype     = np.float64):
 
         self.__dtype    = dtype
 
         if h        != None:
             self.__h        = float(h)
-        if point1   != None:
-            self.__point1   = np.array(point1, self.__dtype)
-        if point2   != None:
-            self.__point2   = np.array(point2, self.__dtype)
+        if corner1   != None:
+            self.__corner1   = np.array(corner1, self.__dtype)
+        if corner2   != None:
+            self.__corner2   = np.array(corner2, self.__dtype)
 
         self.__dtype = dtype
 
@@ -76,21 +76,17 @@ class Mesh(object):
         self.__h = h
     h = property(geth, seth , doc="Manipulates smoothing length" )
 
-    #-----------------------------------
+    def getcorner1(self        ):
+        return self.__corner1
+    def setcorner1(self, corner1):
+        self.__corner1 =  np.array(corner1, self.__dtype)
+    corner1 = property(getcorner1, setcorner1 , doc="Corner1 is the the first corner of the volume that contains all the particles" )
 
-    def getpoint1(self        ):
-        return self.__point1
-    def setpoint1(self, point1):
-        self.__point1 = point1
-    point1 = property(getpoint1, setpoint1 , doc="Point1 is the the first corner of the volume that contains all the particles" )
-
-    #-----------------------------------
-
-    def getpoint2(self        ):
-        return self.__point2
-    def setpoint2(self, point2):
-        self.__point2 = point2
-    point2 = property(getpoint2, setpoint2 , doc="Point2 is the the second corner of the volume that contains all the particles" )
+    def getcorner2(self        ):
+        return self.__corner2
+    def setcorner2(self, corner2):
+        self.__corner2 =  np.array(corner2, self.__dtype)
+    corner2 = property(getcorner2, setcorner2 , doc="Corner2 is the the second corner of the volume that contains all the particles" )
 
     '''
     Methods --------------------------------------------------------------------
@@ -100,35 +96,18 @@ class Mesh(object):
             __particle_is_in_cell
     '''
 
-    def calc_mesh(self, h         = None,
-                        point1    = None,
-                        point2    = None,
-                        dtype     = np.float64):
+    def calc_mesh(self, dtype = np.float64):
         L = self.__INI_FLOAT * np.ones((3), dtype=dtype)
 
 
-        if h        == None:
-            h       = self.__h
-        else:
-            h       = h
-
-        if point1   == None:
-            point1  = np.array(self.__point1, self.__dtype)
-        else:
-            point1  = self.__point1
-
-        if point2   == None:
-            point2  = np.array(self.__point2, self.__dtype)
-        else:
-            point2  = self.__point2
-
-        L               = point2 - point1
+        h       = self.__h
+        corner1 = self.__corner1
+        corner2 = self.__corner2
+        L       = corner2 - corner1
 
         self.__ar_axis0     = np.arange(-h, L[0]+2*h, h, dtype=self.__dtype)
         self.__ar_axis1     = np.arange(-h, L[1]+2*h, h, dtype=self.__dtype)
         self.__ar_axis2     = np.arange(-h, L[2]+2*h, h, dtype=self.__dtype)
-
-    #-----------------------------------
 
     def calc_particles_mesh_locations(self, pset, dtype = np.float64):
         '''
@@ -138,7 +117,7 @@ class Mesh(object):
         ar_axis0        = self.__ar_axis0
         ar_axis1        = self.__ar_axis1
         ar_axis2        = self.__ar_axis2
-        point1          = self.__point1
+        corner1         = self.__corner1
         max0            = len(ar_axis0)-1
         max1            = len(ar_axis1)-1
         max2            = len(ar_axis2)-1
@@ -151,22 +130,22 @@ class Mesh(object):
             cell2       = 0
 
             for x in range(0, max0):
-                if (X[0] >= point1[0]+ar_axis0[x  ] and     # This if is to guarantee that each particle is assign just to 1 cell
-                    X[0] <= point1[0]+ar_axis0[x+1]):
+                if (X[0] >= corner1[0]+ar_axis0[x  ] and     # This if is to guarantee that each particle is assign just to 1 cell
+                    X[0] <= corner1[0]+ar_axis0[x+1]):
                         break
                 else:
                     cell0 = cell0+1
 
             for x in range(0, max1):
-                if (X[1] >= point1[1]+ar_axis1[x  ] and
-                    X[1] <= point1[1]+ar_axis1[x+1]):
+                if (X[1] >= corner1[1]+ar_axis1[x  ] and
+                    X[1] <= corner1[1]+ar_axis1[x+1]):
                     break
                 else:
                     cell1 = cell1+1
 
             for x in range(0, max2):
-                if (X[2] >= point1[2]+ar_axis2[x  ] and
-                    X[2] <= point1[2]+ar_axis2[x+1]):
+                if (X[2] >= corner1[2]+ar_axis2[x  ] and
+                    X[2] <= corner1[2]+ar_axis2[x+1]):
                         break
                 else:
                     cell2 = cell2+1
@@ -181,8 +160,6 @@ class Mesh(object):
 
         pset.get_by_name(self.__cell)[:] = particle_cell[:]
 
-    #-----------------------------------
-
     def __particle_is_in_cell(self, part_ij, cell_ij):
         if (part_ij[0] == cell_ij[0] and
             part_ij[1] == cell_ij[1] and
@@ -190,8 +167,6 @@ class Mesh(object):
                 return True
         else:
             return False
-
-    #-----------------------------------
 
     def calc_particles_that_interact(self, pset, fi, sk):
         '''
@@ -238,7 +213,7 @@ class Mesh(object):
 
                             # Scans particles_set
                             for j in range(i, part_nbr):
-                                two_part_found = False
+                                scnd_part_found = False
 
                                 if (j in particle_index):
                                     pass
@@ -247,52 +222,52 @@ class Mesh(object):
                                     if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2  )):
                                         x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                         y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                        two_part_found = True
+                                        scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1,  x2  )):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2  )):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2+1)):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2  )):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2+1)):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2+1)):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
-                                    if two_part_found == False:
+                                    if scnd_part_found == False:
                                         if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1  ,x2+1)):
                                             x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
                                             y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            two_part_found = True
+                                            scnd_part_found = True
 
 
-                                    if two_part_found:
+                                    if scnd_part_found:
                                         dist    = self.__INI_FLOAT
                                         dist    = distance(x, y)
 

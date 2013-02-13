@@ -249,7 +249,7 @@ def cube_water():
 
     point1  = np.array([0.0, 0.0, 0.0], dtype=np.float64)
     point2  = np.array([L,   L,   L  ], dtype=np.float64)
-    mesh    = msh.Mesh                  (pset=pset, h = h, point1 = point1, point2 = point2)
+    mesh    = msh.Mesh                  (pset=pset, h = h, corner1 = point1, corner2 = point2)
     mesh.calc_mesh                      ()
     mesh.calc_particles_mesh_locations  (pset=pset, dtype=np.float64)
     mesh.calc_particles_that_interact   (pset=pset, fi=fi, sk=sk)
