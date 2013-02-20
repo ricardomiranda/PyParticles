@@ -168,7 +168,7 @@ class Mesh(object):
         else:
             return False
 
-    def calc_particles_that_interact(self, pset, fi, sk):
+    def calc_particles_that_interact(self, pset):
         '''
         Covers the entire mesh looking for particles. Algorithm:
             1) for the first particle in a cell (computed in Mesh.calc_particles_mesh_locations) looks for other particles
@@ -278,6 +278,5 @@ class Mesh(object):
                                             ij_dst.append(dist)
                                             f_conn.append(conn)
 
-        fi.add_connections  (fc=f_conn             )
-        sk.add_distances    (fc=f_conn, dist=ij_dst)
+        return f_conn
 

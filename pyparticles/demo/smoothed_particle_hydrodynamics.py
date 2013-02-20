@@ -245,17 +245,16 @@ def cube_water():
     sk      = ns.HPSSmothingKernels(pset=pset)
     sk.h    = h_local                                   # RCM, for tests
     h       = sk.h
-#    sk.calc_smothing_kernels        (pset=pset)         # RCM
 
     point1  = np.array([0.0, 0.0, 0.0], dtype=np.float64)
     point2  = np.array([L,   L,   L  ], dtype=np.float64)
     mesh    = msh.Mesh                  (pset=pset, h = h, corner1 = point1, corner2 = point2)
     mesh.calc_mesh                      ()
     mesh.calc_particles_mesh_locations  (pset=pset, dtype=np.float64)
-    mesh.calc_particles_that_interact   (pset=pset, fi=fi, sk=sk)
+    f_conn = mesh.calc_particles_that_interact   (pset=pset)
+    fi.add_connections                  (fc=f_conn)
     sk.calc_smothing_kernels            (pset=pset)
-
-    grav = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
+    grav   = cf.ConstForce( pset.size , dim=pset.dim , u_force=( 0.0 , 0.0 , g ) )
 
     occx = None
     if test_pyopencl() :

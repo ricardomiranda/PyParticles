@@ -109,17 +109,6 @@ class HPSSmothingKernels(object):
 
         self.__r            = dok.dok_matrix((pset.size, pset.size), dtype=np.float64) # List of distances between particles i and j
 
-        '''
-        self.__w_p6         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_p6_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_p6_lpl     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_sp         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_sp_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_vc         = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_vc_grd     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        self.__w_vc_lpl     = dok.dok_matrix((pset.size, pset.size), dtype=np.float64)
-        '''
-
     # Get and Set --------------------------------------------------------------
 
     def add_distances(self, fc, dist):
