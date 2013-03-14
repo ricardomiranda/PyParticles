@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy                                                        as np
-import pyparticles.pset.particles_set                               as ps
 import pyparticles.pset.constrained_force_interactions  as cfi
 import pyparticles.forces.navier_stokes                 as ns
 
@@ -127,36 +126,19 @@ class Mesh(object):
         max1    = len(self.__ar_axis1)-1
         max2    = len(self.__ar_axis2)-1
         cell    = [self.__INI_INT,self.__INI_INT,self.__INI_INT]
-        cell0   = 0
-        cell1   = 0
-        cell2   = 0
 
-        for x in range(0, max0):
-            if (X[0] >= self.__corner1[0]+self.__ar_axis0[x  ] and     # This if is to guarantee that each particle is assign just to 1 cell
-                X[0] <= self.__corner1[0]+self.__ar_axis0[x+1]):
-                    break
-            else:
-                cell0 = cell0+1
-
-        for x in range(0, max1):
-            if (X[1] >= self.__corner1[1]+self.__ar_axis1[x  ] and
-                X[1] <= self.__corner1[1]+self.__ar_axis1[x+1]):
-                break
-            else:
-                cell1 = cell1+1
-
-        for x in range(0, max2):
-            if (X[2] >= self.__corner1[2]+self.__ar_axis2[x  ] and
-                X[2] <= self.__corner1[2]+self.__ar_axis2[x+1]):
-                    break
-            else:
-                cell2 = cell2+1
-
-        cell[0] = cell0
-        cell[1] = cell1
-        cell[2] = cell2
+        cell=[(x, y, z) for x in range(0, max0) 
+                        for y in range(0, max1)
+                        for z in range(0, max2)
+                        if (X[0] >= self.__corner1[0]+self.__ar_axis2[x  ] and
+                            X[0] <  self.__corner1[0]+self.__ar_axis2[x+1])
+                        if (X[1] >= self.__corner1[1]+self.__ar_axis2[y  ] and
+                            X[1] <  self.__corner1[1]+self.__ar_axis2[y+1])
+                        if (X[2] >= self.__corner1[2]+self.__ar_axis2[z  ] and
+                            X[2] <  self.__corner1[2]+self.__ar_axis2[z+1])]
+        cell=list(cell[0])
         return cell
-
+        
     def __particle_is_in_cell(self, part_ij, cell_ij):
         if (part_ij[0] == cell_ij[0] and
             part_ij[1] == cell_ij[1] and
