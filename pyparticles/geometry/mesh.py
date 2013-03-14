@@ -92,6 +92,7 @@ class Mesh(object):
     Methods --------------------------------------------------------------------
         calc_mesh
         calc_particle_mesh_location
+            __calc_particle_mesh_locationone
         calc_particles_that_interact
             __particle_is_in_cell
     '''
@@ -111,54 +112,50 @@ class Mesh(object):
 
     def calc_particles_mesh_locations(self, pset, dtype = np.float64):
         '''
-        Finds the mesh's cell where the each particle is located
+        Finds the mesh's cell where each particle is located
+        '''
+        particle_cell=map(self.__calc_particle_mesh_location, pset.X)
+        particle_cell=np.asarray(particle_cell, np.int64)
+        pset.get_by_name(self.__cell)[:] = particle_cell[:]
+
+    def __calc_particle_mesh_location(self, X):
+        '''
+        Finds the mesh's cell where this particle is located
         '''
 
-        ar_axis0        = self.__ar_axis0
-        ar_axis1        = self.__ar_axis1
-        ar_axis2        = self.__ar_axis2
-        corner1         = self.__corner1
-        max0            = len(ar_axis0)-1
-        max1            = len(ar_axis1)-1
-        max2            = len(ar_axis2)-1
-        particle_cell   = []                    # List of cells where each particle is
+        max0    = len(self.__ar_axis0)-1
+        max1    = len(self.__ar_axis1)-1
+        max2    = len(self.__ar_axis2)-1
+        cell    = [self.__INI_INT,self.__INI_INT,self.__INI_INT]
+        cell0   = 0
+        cell1   = 0
+        cell2   = 0
 
-        for X in pset.X:
-            cell        = [self.__INI_INT,self.__INI_INT,self.__INI_INT]
-            cell0       = 0
-            cell1       = 0
-            cell2       = 0
-
-            for x in range(0, max0):
-                if (X[0] >= corner1[0]+ar_axis0[x  ] and     # This if is to guarantee that each particle is assign just to 1 cell
-                    X[0] <= corner1[0]+ar_axis0[x+1]):
-                        break
-                else:
-                    cell0 = cell0+1
-
-            for x in range(0, max1):
-                if (X[1] >= corner1[1]+ar_axis1[x  ] and
-                    X[1] <= corner1[1]+ar_axis1[x+1]):
+        for x in range(0, max0):
+            if (X[0] >= self.__corner1[0]+self.__ar_axis0[x  ] and     # This if is to guarantee that each particle is assign just to 1 cell
+                X[0] <= self.__corner1[0]+self.__ar_axis0[x+1]):
                     break
-                else:
-                    cell1 = cell1+1
+            else:
+                cell0 = cell0+1
 
-            for x in range(0, max2):
-                if (X[2] >= corner1[2]+ar_axis2[x  ] and
-                    X[2] <= corner1[2]+ar_axis2[x+1]):
-                        break
-                else:
-                    cell2 = cell2+1
+        for x in range(0, max1):
+            if (X[1] >= self.__corner1[1]+self.__ar_axis1[x  ] and
+                X[1] <= self.__corner1[1]+self.__ar_axis1[x+1]):
+                break
+            else:
+                cell1 = cell1+1
 
-            cell[0] = cell0
-            cell[1] = cell1
-            cell[2] = cell2
+        for x in range(0, max2):
+            if (X[2] >= self.__corner1[2]+self.__ar_axis2[x  ] and
+                X[2] <= self.__corner1[2]+self.__ar_axis2[x+1]):
+                    break
+            else:
+                cell2 = cell2+1
 
-            particle_cell.append(cell)
-
-        particle_cell=np.asarray(particle_cell, np.int64)
-
-        pset.get_by_name(self.__cell)[:] = particle_cell[:]
+        cell[0] = cell0
+        cell[1] = cell1
+        cell[2] = cell2
+        return cell
 
     def __particle_is_in_cell(self, part_ij, cell_ij):
         if (part_ij[0] == cell_ij[0] and
