@@ -17,8 +17,6 @@
 import sys
 import numpy                                            as np
 import scipy.sparse.dok                                 as dok
-import pyparticles.pset.particles_set                   as ps
-
 
 class HPSSmothingKernels(object):
     """
