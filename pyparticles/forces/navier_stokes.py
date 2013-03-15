@@ -164,9 +164,9 @@ class HPSSmothingKernels(object):
 
         w_p6_grd = self.__INI_FLOAT
         if   0 <= r and r <= h:
-            w_6_grd = -r * (945.0/(32.0*pi* np.power(h, 9))) * np.power(np.power(h, 2) - np.power(r, 2), 2)
+            w_p6_grd = -r * (945.0/(32.0*pi* np.power(h, 9))) * np.power(np.power(h, 2) - np.power(r, 2), 2)
         elif r >  h:
-            w_6_grd = 0.0
+            w_p6_grd = 0.0
         else:
             sys.exit(self, msg="navier_stokes.HPSSmothingKernels.w_poly6_gradiend")
 

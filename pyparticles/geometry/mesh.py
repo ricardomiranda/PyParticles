@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy                                                        as np
+import numpy                                            as np
 import pyparticles.pset.constrained_force_interactions  as cfi
 import pyparticles.forces.navier_stokes                 as ns
 
@@ -94,6 +94,7 @@ class Mesh(object):
             __calc_particle_mesh_locationone
         calc_particles_that_interact
             __particle_is_in_cell
+                __find_second_particle
     '''
 
     def calc_mesh(self, dtype = np.float64):
@@ -158,7 +159,6 @@ class Mesh(object):
             3) goes to the next cell.
         Distances between 2 particles in not computed twice.
         '''
-
         ar_axis0            = self.__ar_axis0
         ar_axis1            = self.__ar_axis1
         ar_axis2            = self.__ar_axis2
@@ -170,92 +170,89 @@ class Mesh(object):
         max0                = len(ar_axis0)-2
         max1                = len(ar_axis1)-2
         max2                = len(ar_axis2)-2
-
         h                   = self.__h
-        particle_index      = []                    # List of particles to remember every particle already computed
         particle_cell       = None                  # List of cells where each particle is
         f_conn              = []                    # Connections list
-        ij_dst              = []                    # List of distances between particles i and j
-
+        particle_index      = []                    # List of particles to remember every particle already computed
         particle_cell       = np.array(pset.get_by_name(self.__cell)[:])
         part_nbr            = len(particle_cell)-1
 
+        def __find_second_particle(x0, x1, x2, i):
+#            if self.__particle_is_in_cell(particle_cell[i,:], (x, y, z)):  # Reference particle
+            particle_index.append(i)
+            j = i
+
+            # Scans particles_set
+            for j in range(i, part_nbr):
+                scnd_part_found = False
+
+                if (j not in particle_index):
+                    # Checks in 9 cells if there are particles
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2  )):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1,  x2  )):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2  )):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2+1)):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2  )):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2+1)):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2+1)):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+                    if scnd_part_found == False:
+                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1,   x2+1)):
+                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
+                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
+                            scnd_part_found = True
+
+
+                    if scnd_part_found:
+                        dist    = self.__INI_FLOAT
+                        dist    = distance(x, y)
+
+                        if dist <= h:
+                            conn    = [self.__INI_INT,  self.__INI_INT]
+                            conn    = [i,j]
+                            return conn
+                    
         # Scans the entire mesh
-        for x0 in range(1, max0):
-            for x1 in range(1, max1):
-                for x2 in range(1, max2):
-                    for i in range(0, part_nbr):
-                        # Reference particle
-                        if self.__particle_is_in_cell(particle_cell[i,:], (x0,x1,x2)):
-                            particle_index.append(i)
-                            j = i
+        f_conn=[__find_second_particle(x0=x, x1=y, x2=z, i=i) for x in range(1, max0) 
+                                                              for y in range(1, max1)
+                                                              for z in range(1, max2)
+                                                              for i in range(0, part_nbr)
+                            if self.__particle_is_in_cell(particle_cell[i,:], (x, y, z))]  # Reference particle
 
-                            # Scans particles_set
-                            for j in range(i, part_nbr):
-                                scnd_part_found = False
-
-                                if (j in particle_index):
-                                    pass
-                                else:
-                                    # Checks in 9 cells if there are particles
-                                    if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2  )):
-                                        x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                        y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                        scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1,  x2  )):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2  )):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1+1,x2+1)):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2  )):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1+1,x2+1)):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0,  x1,  x2+1)):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-                                    if scnd_part_found == False:
-                                        if self.__particle_is_in_cell(particle_cell[j,:], (x0+1,x1  ,x2+1)):
-                                            x = np.array([pset.X[i,0],pset.X[i,1],pset.X[i,2]], dtype=np.float64)
-                                            y = np.array([pset.X[j,0],pset.X[j,1],pset.X[j,2]], dtype=np.float64)
-                                            scnd_part_found = True
-
-
-                                    if scnd_part_found:
-                                        dist    = self.__INI_FLOAT
-                                        dist    = distance(x, y)
-
-                                        if dist <= h:
-                                            conn    = [self.__INI_INT,  self.__INI_INT]
-                                            conn    = [i,j]
-
-                                            ij_dst.append(dist)
-                                            f_conn.append(conn)
-
+        f_conn=[conn for conn in f_conn if conn != None]
         return f_conn
 
