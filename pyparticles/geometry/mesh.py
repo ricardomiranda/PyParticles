@@ -129,14 +129,14 @@ class Mesh(object):
         cell    = [self.__INI_INT,self.__INI_INT,self.__INI_INT]
 
         cell=[(x, y, z) for x in range(0, max0) 
+                            if (X[0] >= self.__corner1[0]+self.__ar_axis2[x  ] and
+                                X[0] <  self.__corner1[0]+self.__ar_axis2[x+1])
                         for y in range(0, max1)
+                            if (X[1] >= self.__corner1[1]+self.__ar_axis2[y  ] and
+                                X[1] <  self.__corner1[1]+self.__ar_axis2[y+1])
                         for z in range(0, max2)
-                        if (X[0] >= self.__corner1[0]+self.__ar_axis2[x  ] and
-                            X[0] <  self.__corner1[0]+self.__ar_axis2[x+1])
-                        if (X[1] >= self.__corner1[1]+self.__ar_axis2[y  ] and
-                            X[1] <  self.__corner1[1]+self.__ar_axis2[y+1])
-                        if (X[2] >= self.__corner1[2]+self.__ar_axis2[z  ] and
-                            X[2] <  self.__corner1[2]+self.__ar_axis2[z+1])]
+                            if (X[2] >= self.__corner1[2]+self.__ar_axis2[z  ] and
+                                X[2] <  self.__corner1[2]+self.__ar_axis2[z+1])]
         cell=list(cell[0])
         return cell
         
